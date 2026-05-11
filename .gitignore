@@ -1,0 +1,6 @@
+.build/
+.cckit/
+.DS_Store
+DerivedData/
+Packages/
+.swiftpm/
