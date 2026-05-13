@@ -28,6 +28,7 @@ struct IndexCommand: AsyncParsableCommand {
     var stats: Bool = false
 
     func run() async throws {
+        let startTime = Date()
         let dbPath = ".cckit/index.sqlite"
         let waxPath = ".cckit/repo.wax"
         
@@ -42,10 +43,14 @@ struct IndexCommand: AsyncParsableCommand {
         
         let db = try Database(path: dbPath)
         let wax = try await WaxStore(path: waxPath)
+        let actionOrchestrator = ActionOrchestrator(db: db, wax: wax)
         let indexer = Indexer(db: db, wax: wax)
         
         print("Indexing \(path)...")
         try await indexer.index(at: path, include: include, exclude: exclude, delegate: CommandLineProgressDelegate())
+        
+        let duration = Int(Date().timeIntervalSince(startTime) * 1000)
+        try await actionOrchestrator.recordCLIAction(command: "index \(path)\(clean ? " --clean" : "")", toolName: "Indexer", durationMs: duration)
         
         try await wax.close()
     }

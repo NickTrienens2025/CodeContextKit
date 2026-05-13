@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import CodeContextKitCore
+import CodeContextKitRetrieval
 
 struct EstimateCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(

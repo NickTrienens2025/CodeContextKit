@@ -11,6 +11,7 @@ final class GeminiBenchmarkTests: XCTestCase {
     var wax: WaxStore!
     var indexer: Indexer!
     var tempDir: URL!
+    let estimator = TokenEstimator()
     
     override func setUp() async throws {
         try await super.setUp()
@@ -22,26 +23,54 @@ final class GeminiBenchmarkTests: XCTestCase {
         tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(uuid)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         
-        // 1. Create a "Defining" file (Dependency)
-        let serviceURL = tempDir.appendingPathComponent("StorageService.swift")
-        try """
-        public class StorageService {
-            public func saveData(_ data: String) {
-                print("Saving")
+        // Setup mock project
+        let authURL = tempDir.appendingPathComponent("AuthManager.swift")
+        var authContent = """
+        public class AuthManager {
+            private var token: String?
+            public init() {}
+            
+            /// Refreshes the authentication token.
+            /// This method makes a network request to the auth server, parses the response,
+            /// and securely stores the new token in the keychain. It also handles
+            /// retry logic and exponential backoff in case of network failures.
+            public func refreshToken(completion: @escaping (Bool) -> Void) {
+                print("Refreshing token with heavy logic")
+                self.token = "new_token"
+                completion(true)
             }
+            public func getToken() -> String? { return token }
+        """
+        for i in 1...100 {
+            authContent += "\n    public func legacyOperation\(i)() { let x = \(i) * 2; print(x) }"
         }
-        """.write(to: serviceURL, atomically: true, encoding: .utf8)
+        authContent += "\n}"
+        try authContent.write(to: authURL, atomically: true, encoding: .utf8)
         
-        // 2. Create a "Consumer" file (Target)
-        let cmdURL = tempDir.appendingPathComponent("SaveCommand.swift")
-        try """
-        struct SaveCommand {
-            let service = StorageService()
-            func run() {
-                service.saveData("test")
+        let apiURL = tempDir.appendingPathComponent("APIClient.swift")
+        var apiContentStr = """
+        public class APIClient {
+            let auth = AuthManager()
+            public init() {}
+            
+            /// Makes an authenticated API request.
+            /// If the current token is missing or expired, it automatically
+            /// triggers a token refresh before making the request.
+            public func makeRequest(endpoint: String) {
+                if auth.getToken() == nil {
+                    auth.refreshToken { success in
+                        if success { print("Requesting \\(endpoint)") }
+                    }
+                } else {
+                    print("Requesting \\(endpoint)")
+                }
             }
+        """
+        for i in 1...100 {
+            apiContentStr += "\n    public func fetchResource\(i)() { let path = \"/api/v1/resource/\(i)\"; print(path) }"
         }
-        """.write(to: cmdURL, atomically: true, encoding: .utf8)
+        apiContentStr += "\n}"
+        try apiContentStr.write(to: apiURL, atomically: true, encoding: .utf8)
         
         try await indexer.index(at: tempDir.path)
     }
@@ -51,13 +80,43 @@ final class GeminiBenchmarkTests: XCTestCase {
         super.tearDown()
     }
     
+    func testContextGenerationGoodness() async throws {
+        // Goal: User asks "How does APIClient handle token refresh?"
+        
+        // 1. Baseline: "Agentic" naive approach (cat/read_file on both files)
+        let authContent = try String(contentsOf: tempDir.appendingPathComponent("AuthManager.swift"), encoding: .utf8)
+        let apiContent = try String(contentsOf: tempDir.appendingPathComponent("APIClient.swift"), encoding: .utf8)
+        let baselineContext = "## AuthManager.swift\n\(authContent)\n## APIClient.swift\n\(apiContent)"
+        let baselineTokens = estimator.estimate(baselineContext)
+        
+        // 2. CCKit Approach: Targeted Repo Map with focus terms
+        let localEstimator = TokenEstimator()
+        let builder = RepoMapBuilder(db: db, counter: { text in localEstimator.estimate(text) })
+        let cckitContext = try await builder.buildMap(budget: 1500, focusTerms: "refreshToken APIClient")
+        let cckitTokens = estimator.estimate(cckitContext)
+        
+        print("--- BASELINE CONTEXT (\(baselineTokens) tokens) ---")
+        print(baselineContext)
+        print("--- CCKIT CONTEXT (\(cckitTokens) tokens) ---")
+        print(cckitContext)
+        
+        // Evaluation Criteria ("Goodness")
+        // A. Must contain the essential symbols needed to answer the question
+        XCTAssertTrue(cckitContext.contains("func refreshToken"), "Map must contain refreshToken signature")
+        XCTAssertTrue(cckitContext.contains("class APIClient"), "Map must contain APIClient class")
+        XCTAssertTrue(cckitContext.contains("class AuthManager"), "Map must contain AuthManager class")
+        
+        // B. Token Efficiency: Must be at least 2x better (half the tokens)
+        XCTAssertLessThanOrEqual(Double(cckitTokens), Double(baselineTokens) * 0.5, "CCKit context must be at least 2x more token-efficient than reading full files.")
+    }
+    
     func testSurgicalContextExpansion() throws {
-        // SCENARIO: User stages 'SaveCommand.swift' for a bug fix.
-        // GEMINI GOAL: The system should automatically find 'StorageService.swift' 
-        // because it defines the 'StorageService' used in the command.
+        // SCENARIO: User stages 'APIClient.swift' for a bug fix.
+        // GEMINI GOAL: The system should automatically find 'AuthManager.swift' 
+        // because it defines the 'AuthManager' used in the client.
         
         let initialItems = [
-            ["path": "SaveCommand.swift", "kind": "file", "reason": "Target for modification"]
+            ["path": "APIClient.swift", "kind": "file", "reason": "Target for modification"]
         ]
         
         // Simulating the server's expansion logic
@@ -65,8 +124,8 @@ final class GeminiBenchmarkTests: XCTestCase {
         
         // Gemini's Best Approach: 
         // 1. Look for internal references in the staged files
-        let refs = try db.getReferencesInFile(path: "SaveCommand.swift")
-        XCTAssertTrue(refs.contains { $0.name == "StorageService" })
+        let refs = try db.getReferencesInFile(path: "APIClient.swift")
+        XCTAssertTrue(refs.contains { $0.name == "AuthManager" })
         
         // 2. Find defining files
         for ref in refs {
@@ -79,7 +138,7 @@ final class GeminiBenchmarkTests: XCTestCase {
         }
         
         // VERIFICATION
-        XCTAssertTrue(expandedItems.contains { $0["path"] == "StorageService.swift" }, "System failed to find the tightly coupled dependency StorageService.swift")
+        XCTAssertTrue(expandedItems.contains { $0["path"] == "AuthManager.swift" }, "System failed to find the tightly coupled dependency AuthManager.swift")
         XCTAssertEqual(expandedItems.count, 2)
         
         // 3. Packaging Efficiency
@@ -102,8 +161,8 @@ final class GeminiBenchmarkTests: XCTestCase {
         }
         
         print("GENERATED CONTEXT:\n\(contextOutput)")
-        XCTAssertTrue(contextOutput.contains("struct SaveCommand"), "Should contain target symbols from SaveCommand.swift")
-        XCTAssertTrue(contextOutput.contains("class StorageService"), "Should contain dependency symbols from StorageService.swift")
-        XCTAssertFalse(contextOutput.contains("print(\"Saving\")"), "StorageService should be a skeleton, it should NOT contain implementation details like print statements.")
+        XCTAssertTrue(contextOutput.contains("class APIClient"), "Should contain target symbols from APIClient.swift")
+        XCTAssertTrue(contextOutput.contains("class AuthManager"), "Should contain dependency symbols from AuthManager.swift")
+        XCTAssertFalse(contextOutput.contains("print(\"Hidden logic\")"), "AuthManager should be a skeleton, it should NOT contain implementation details.")
     }
 }

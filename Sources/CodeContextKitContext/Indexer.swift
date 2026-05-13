@@ -4,13 +4,32 @@ import CodeContextKitSwiftIndex
 import CodeContextKitStorage
 import CodeContextKitRetrieval
 
+/// Delegate protocol for monitoring the progress of the indexing process.
+/// Verified by: `IndexerTests.testIncrementalIndexing`
 public protocol IndexerProgressDelegate: Sendable {
+    /// Called when indexing starts with the total number of files to be processed.
     func indexerDidStart(totalFiles: Int)
+    
+    /// Called as each file is processed.
     func indexerDidProgress(completedFiles: Int, totalFiles: Int, currentFile: String)
+    
+    /// Called when indexing completes successfully.
     func indexerDidFinish(updated: Int, skipped: Int, totalSymbols: Int)
+    
+    /// Called if the indexing process encounters a fatal error.
     func indexerDidFail(error: Error)
 }
 
+/// The core engine responsible for scanning the filesystem, extracting symbols, and persisting them to the database and vector store.
+/// 
+/// `Indexer` coordinates the entire indexing pipeline:
+/// 1. Scans the filesystem for relevant files using `FileScanner`.
+/// 2. Hashes file content to support incremental updates.
+/// 3. Routes files to the appropriate `CodeSplitter`.
+/// 4. Persists extracted symbols and references to the `Database`.
+/// 5. Populates the `WaxStore` with symbol bodies for semantic search.
+///
+/// Verified by: `IndexerTests`, `WebContextTests.testWebProjectIndexing`
 public final class Indexer: Sendable {
     private let db: Database
     private let wax: WaxStore
@@ -78,32 +97,14 @@ public final class Indexer: Sendable {
                 }
                 
                 let ext = (relativePath as NSString).pathExtension.lowercased()
-                let isSwift = ext == "swift"
+                let router = SplitterRouter()
+                let splitter = router.splitter(for: relativePath)
                 
-                var symbols: [SymbolRecord] = []
-                var references: [SymbolRecord.Reference] = []
-                
-                if isSwift {
-                    let swiftFile = SwiftSourceFile(filePath: relativePath, content: content)
-                    let extracted = swiftFile.extractSymbols()
-                    symbols = extracted.0
-                    references = extracted.1
-                } else {
-                    // For non-Swift files, create a single 'file' symbol
-                    symbols = [SymbolRecord(
-                        kind: .file,
-                        name: relativePath,
-                        qualifiedName: relativePath,
-                        signature: "File: \(relativePath)",
-                        filePath: relativePath,
-                        startLine: 1,
-                        endLine: lines.count
-                    )]
-                }
+                let (symbols, references) = splitter.extractSymbols(content: content, filePath: relativePath)
                 
                 let fileId = try db.saveFile(
                     path: relativePath,
-                    language: isSwift ? "swift" : ext,
+                    language: ext,
                     sha256: currentHash,
                     sizeBytes: content.utf8.count,
                     modifiedAt: try fileURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
@@ -113,17 +114,24 @@ public final class Indexer: Sendable {
                 
                 try db.saveSymbols(symbols, references: references, fileId: fileId)
                 
-                if isSwift {
-                    let swiftFile = SwiftSourceFile(filePath: relativePath, content: content)
+                // For Wax, we either save individual symbols (Swift) or the whole file (other)
+                if let swiftSplitter = splitter as? SwiftSourceFile {
                     for symbol in symbols {
-                        let body = swiftFile.body(for: symbol)
+                        let body = swiftSplitter.body(for: symbol)
                         try await wax.saveSymbol(symbol, body: body)
                     }
                 } else {
-                    // For non-Swift files, index the entire file as a single searchable entity in Wax
-                    if let fileSymbol = symbols.first {
-                        try await wax.saveSymbol(fileSymbol, body: content)
-                    }
+                    // Create a synthetic file symbol for search if no symbols were extracted
+                    let searchSymbol = symbols.first ?? SymbolRecord(
+                        kind: .file,
+                        name: relativePath,
+                        qualifiedName: relativePath,
+                        signature: "File: \(relativePath)",
+                        filePath: relativePath,
+                        startLine: 1,
+                        endLine: lines.count
+                    )
+                    try await wax.saveSymbol(searchSymbol, body: content)
                 }
                 
                 updatedCount += 1

@@ -85,4 +85,36 @@ final class SwiftIndexTests: XCTestCase {
         XCTAssertFalse(symbols.contains { $0.name == "data" })
         XCTAssertFalse(symbols.contains { $0.name == "hash" && $0.kind == .property })
     }
+
+    func testEnumAndDetailedSignatures() {
+        let content = """
+        enum MyEnum: String {
+            case first
+            case second(val: Int)
+        }
+
+        struct MyGeneric<T: Comparable>: BaseProtocol {
+            var value: T
+        }
+        """
+        
+        let swiftFile = SwiftSourceFile(filePath: "EnumTest.swift", content: content)
+        let (symbols, _) = swiftFile.extractSymbols()
+        
+        // Enum checks
+        let enumSymbol = symbols.first { $0.name == "MyEnum" }
+        XCTAssertNotNil(enumSymbol)
+        XCTAssertEqual(enumSymbol?.signature, "enum MyEnum: String")
+        
+        XCTAssertTrue(symbols.contains { $0.name == "first" && $0.kind == .case })
+        XCTAssertTrue(symbols.contains { $0.name == "second" && $0.kind == .case })
+        
+        let secondCase = symbols.first { $0.name == "second" }
+        XCTAssertEqual(secondCase?.signature, "case second(val: Int)")
+        
+        // Generic struct check
+        let structSymbol = symbols.first { $0.name == "MyGeneric" }
+        XCTAssertNotNil(structSymbol)
+        XCTAssertEqual(structSymbol?.signature, "struct MyGeneric<T: Comparable>: BaseProtocol")
+    }
 }

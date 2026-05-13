@@ -2,6 +2,16 @@ import Foundation
 import GRDB
 import CodeContextKitCore
 
+/// Robust SQLite-backed storage for repository metadata, symbol records, and context configurations.
+/// 
+/// `Database` serves as the primary persistence layer for CodeContextKit. It uses **GRDB.swift** for type-safe 
+/// interaction with SQLite and handles:
+/// - File tracking and content hashing.
+/// - Symbol extraction results and cross-references.
+/// - User preferences (favorites, view modes).
+/// - Context Pack configurations.
+/// 
+/// Verified by: `StorageTests`
 public final class Database: @unchecked Sendable {
     private let writer: DatabaseWriter
     
@@ -126,6 +136,20 @@ public final class Database: @unchecked Sendable {
                 t.column("reason", .text) // Why this was added
             }
         }
+
+        migrator.registerMigration("v5_action_history") { db in
+            try db.create(table: "actionRecord") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("prompt", .text).notNull()
+                t.column("toolName", .text)
+                t.column("type", .text).notNull().defaults(to: "web")
+                t.column("tokensUsed", .integer).notNull()
+                t.column("durationMs", .integer).notNull()
+                t.column("status", .text).notNull()
+                t.column("timestamp", .datetime).notNull()
+                t.column("response", .text)
+            }
+        }
         
         return migrator
     }
@@ -200,9 +224,21 @@ public final class Database: @unchecked Sendable {
         }
     }
 
-    public func getFilesLike(pattern: String) throws -> [FileRecord] {
-        try writer.read { db in
-            try FileRecord.filter(Column("path").like("%\(pattern)%")).fetchAll(db)
+    public func getFilesLike(pattern: String, strict: Bool = false) throws -> [FileRecord] {
+        let terms = pattern.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        if terms.isEmpty { return [] }
+        
+        return try writer.read { db in
+            var request = FileRecord.all()
+            if strict {
+                for term in terms {
+                    request = request.filter(Column("path").like("%\(term)%"))
+                }
+            } else {
+                let filters = terms.map { Column("path").like("%\($0)%") }
+                request = request.filter(filters.joined(operator: .or))
+            }
+            return try request.fetchAll(db)
         }
     }
     
@@ -244,12 +280,25 @@ public final class Database: @unchecked Sendable {
         }
     }
 
-    public func getSymbolsLike(name: String) throws -> [SymbolRecord] {
-        try writer.read { db in
-            let records = try SymbolRecordInternal
-                .filter(Column("name").like("%\(name)%") || Column("qualifiedName").like("%\(name)%"))
+    public func getSymbolsLike(name: String, strict: Bool = false) throws -> [SymbolRecord] {
+        let terms = name.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        if terms.isEmpty { return [] }
+
+        return try writer.read { db in
+            var request = SymbolRecordInternal.all()
+            if strict {
+                for term in terms {
+                    request = request.filter(Column("name").like("%\(term)%") || Column("qualifiedName").like("%\(term)%"))
+                }
+            } else {
+                let filters = terms.map { Column("name").like("%\($0)%") || Column("qualifiedName").like("%\($0)%") }
+                request = request.filter(filters.joined(operator: .or))
+            }
+
+            let records = try request
                 .order(Column("qualifiedName").asc)
                 .fetchAll(db)
+
             
             return try records.map { record in
                 let file = try FileRecord.filter(Column("id") == record.fileId).fetchOne(db)
@@ -425,7 +474,66 @@ public final class Database: @unchecked Sendable {
             try ContextPack.filter(Column("name") == name).deleteAll(db)
         }
     }
+
+    // MARK: - Action History
+    
+    public func saveActionRecord(_ record: ActionRecord) throws -> Int64 {
+        var rec = record
+        return try writer.write { db in
+            try rec.insert(db)
+            return db.lastInsertedRowID
+        }
+    }
+
+    public func updateActionRecord(id: Int64, status: String, durationMs: Int, tokensUsed: Int, response: String? = nil) throws {
+        try writer.write { db in
+            try db.execute(sql: "UPDATE actionRecord SET status = ?, durationMs = ?, tokensUsed = ?, response = ? WHERE id = ?", arguments: [status, durationMs, tokensUsed, response, id])
+        }
+    }
+
+    public func getActionHistory(limit: Int = 50) throws -> [ActionRecord] {
+        try writer.read { db in
+            try ActionRecord.order(Column("timestamp").desc).limit(limit).fetchAll(db)
+        }
+    }
+
+    public func getRecentlyChangedFiles(limit: Int = 10) throws -> [FileRecord] {
+        try writer.read { db in
+            try FileRecord.order(Column("modifiedAt").desc).limit(limit).fetchAll(db)
+        }
+    }
+
+    public func getTopReferencedSymbols(limit: Int = 20) throws -> [(name: String, count: Int)] {
+        try writer.read { db in
+            let rowList = try Row.fetchAll(db, sql: """
+                SELECT r.name, COUNT(*) as refCount 
+                FROM symbolReferenceInternal r
+                JOIN symbolRecordInternal s ON r.name = s.name
+                WHERE s.kind IN ('class', 'struct', 'protocol', 'actor', 'enum', 'interface', 'style')
+                AND r.name NOT IN (
+                    -- Swift Primitives
+                    'String', 'Int', 'Bool', 'Double', 'Float', 'Data', 'Date', 'URL', 'Array', 'Dictionary', 'Set', 'self', 'Self', 'Any', 'AnyObject',
+                    -- JS/TS Primitives
+                    'string', 'number', 'boolean', 'any', 'unknown', 'never', 'void', 'Promise', 'Object', 'this', 'window', 'document', 'console',
+                    -- Python Primitives
+                    'int', 'float', 'str', 'bool', 'list', 'dict', 'set', 'tuple', 'object', 'cls'
+                )
+                GROUP BY r.name 
+                ORDER BY refCount DESC 
+                LIMIT ?
+            """, arguments: [limit])
+            return rowList.map { (name: $0[0], count: $0[1]) }
+        }
+    }
+    }
+extension ActionRecord: FetchableRecord, MutablePersistableRecord {
+    public static var databaseTableName: String { "actionRecord" }
+    
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
 }
+
 
 // Public GRDB models
 public struct FileRecord: Codable, FetchableRecord, MutablePersistableRecord {

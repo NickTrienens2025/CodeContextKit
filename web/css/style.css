@@ -15,33 +15,86 @@ body {
     color: var(--text-color);
     background-color: var(--background-color);
     display: flex;
-    min-height: 100vh;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
 }
 
 /* Sidebar Styling */
 nav {
     width: var(--nav-width);
+    flex-shrink: 0; /* Ensure sidebar doesn't shrink */
     background-color: var(--secondary-background);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow: hidden;
 }
 
 .nav-header {
-    padding: 20px;
+    padding: 20px 25px;
     border-bottom: 1px solid var(--border-color);
+    background: white;
 }
 
 .nav-header h1 {
     font-size: 1.2rem;
     margin: 0;
+    color: var(--text-color);
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-section {
+    padding: 15px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.sidebar-section h3 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #86868b;
+    padding: 10px 25px;
+    margin: 0;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.sidebar-section h3:hover {
+    background: rgba(0,0,0,0.03);
+}
+
+.sidebar-section h3::after {
+    content: '▾';
+    font-size: 0.8rem;
+    opacity: 0.5;
+    transition: transform 0.2s;
+}
+
+.sidebar-section.collapsed h3::after {
+    transform: rotate(-90deg);
+}
+
+.sidebar-section.collapsed .section-content {
+    display: none;
+}
+
+.section-content {
+    display: block;
 }
 
 #repo-map {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px 0;
+    padding: 5px 0;
 }
 
 .tree-node {
@@ -50,11 +103,11 @@ nav {
 
 .tree-folder {
     font-weight: 600;
-    padding: 4px 20px;
+    padding: 6px 25px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     font-size: 0.85rem;
     color: #424245;
 }
@@ -67,7 +120,8 @@ nav {
     content: '▶';
     font-size: 0.6rem;
     transition: transform 0.2s;
-    width: 12px;
+    width: 14px;
+    opacity: 0.5;
 }
 
 .tree-folder.open::before {
@@ -76,7 +130,7 @@ nav {
 
 .tree-children {
     display: none;
-    padding-left: 15px;
+    padding-left: 10px; /* Reduced to avoid pushing content too far right */
 }
 
 .tree-folder.open + .tree-children {
@@ -84,7 +138,7 @@ nav {
 }
 
 .tree-file {
-    padding: 4px 20px;
+    padding: 6px 25px;
     font-size: 0.85rem;
     cursor: pointer;
     white-space: nowrap;
@@ -92,7 +146,8 @@ nav {
     text-overflow: ellipsis;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    transition: background 0.1s;
 }
 
 .tree-file:hover {
@@ -103,6 +158,11 @@ nav {
     content: '📄';
     font-size: 0.8rem;
     opacity: 0.7;
+    transition: transform 0.2s;
+}
+
+.tree-file.open::before {
+    transform: rotate(90deg);
 }
 
 .tree-file.swift::before { content: '🔶'; }
@@ -132,10 +192,36 @@ nav {
     opacity: 0.6;
 }
 
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+    width: 100%;
+    min-width: 0;
+}
+
+.page-header > div:first-child {
+    flex: 1;
+    min-width: 0;
+}
+
+.page-header h2 {
+    margin: 0;
+    font-size: 1.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .path-link {
     color: var(--accent-color);
     cursor: pointer;
     text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
 }
 
 .path-link:hover {
@@ -148,6 +234,9 @@ main {
     display: flex;
     flex-direction: column;
     height: 100%;
+    width: 0; /* Force flex to ignore content width */
+    min-width: 0;
+    overflow: hidden;
 }
 
 header {
@@ -156,6 +245,9 @@ header {
     display: flex;
     align-items: center;
     gap: 20px;
+    background: white;
+    z-index: 10;
+    flex-shrink: 0; /* Header height should stay fixed */
 }
 
 .search-box {
@@ -178,17 +270,35 @@ header {
     box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.2);
 }
 
-#content {
+#content-area {
     flex: 1;
     overflow-y: auto;
-    padding: 40px;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
+    background: white;
+    width: 100%;
+    min-width: 0;
 }
 
-#docs-view, #grep-view, #graph-view, #settings-view {
+#docs-view, #pack-view, #chat-view, #graph-view, #settings-view {
     flex: 1;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.file-content, .symbol-detail, .dashboard {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+    overflow: hidden; /* Contain children like Monaco */
+}
+
+#docs-view {
+    padding: 40px;
 }
 
 #graph-view {
@@ -253,4 +363,14 @@ header {
 
 pre {
     margin: 0;
+}
+
+.badge {
+    background-color: var(--accent-color);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: 5px;
 }

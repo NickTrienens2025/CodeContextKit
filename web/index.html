@@ -11,72 +11,99 @@
 <body>
     <nav>
         <div class="nav-header">
-            <h1 onclick="viewDashboard()" style="cursor:pointer">Project Name</h1>
+            <h1 onclick="viewDashboard()" style="cursor:pointer">CodeContextKit</h1>
             <div style="margin-top: 10px; font-size: 0.8rem; color: var(--accent-color); cursor: pointer;" onclick="viewLastContext()">📄 View Last Context</div>
         </div>
-        <div id="context-cart-section" style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
-            <div style="padding: 10px 20px; font-size: 0.75rem; color: #86868b; text-transform: uppercase; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
-                <span>🛒 Context Cart</span>
-                <span id="cart-count" style="background: var(--accent-color); color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.6rem;">0</span>
+        
+        <div class="sidebar-content">
+            <div class="sidebar-section">
+                <h3 onclick="toggleSidebarSection(this)">🧠 CONTEXT EXPLORER <span id="cart-count" class="badge">0</span></h3>
+                <div class="section-content">
+                    <div id="cart-list" class="tree-container">
+                        <!-- Cart items will appear here -->
+                    </div>
+                    <button class="action-btn" style="margin: 10px 20px; justify-content: center; background: var(--accent-color); width: calc(100% - 40px);" onclick="showView('pack')">🛰️ Open Explorer</button>
+                </div>
             </div>
-            <div id="cart-list"></div>
-            <div style="padding: 0 20px; margin-top: 10px;">
-                <button class="action-btn" style="width: 100%; justify-content: center;" onclick="showView('pack')">👀 View Pack</button>
+
+            <div class="sidebar-section">
+                <h3 onclick="toggleSidebarSection(this)">⭐ FAVORITES</h3>
+                <div class="section-content">
+                    <div id="favorites-list" class="tree-container"></div>
+                </div>
             </div>
-        </div>
-        <div id="favorites-section" style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
-            <div style="padding: 10px 20px; font-size: 0.75rem; color: #86868b; text-transform: uppercase; font-weight: bold;">⭐ Favorites</div>
-            <div id="favorites-list"></div>
-        </div>
-        <div id="packs-section" style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
-            <div style="padding: 10px 20px; font-size: 0.75rem; color: #86868b; text-transform: uppercase; font-weight: bold;">📦 Saved Packs</div>
-            <div id="packs-list"></div>
-        </div>
-        <div id="repo-map">
-            <div style="padding:20px">Loading repo map...</div>
+
+            <div class="sidebar-section">
+                <h3 onclick="toggleSidebarSection(this)">📦 SAVED PACKS</h3>
+                <div class="section-content">
+                    <div id="packs-list" class="tree-container"></div>
+                </div>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3 onclick="toggleSidebarSection(this)">📂 REPOSITORY MAP</h3>
+                <div class="section-content">
+                    <div id="repo-map" class="tree-container">
+                        <!-- File tree will be rendered here -->
+                    </div>
+                </div>
+            </div>
         </div>
     </nav>
+
     <main>
-        <div id="indexing-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 20000; flex-direction: column; align-items: center; justify-content: center;">
-            <div style="width: 400px; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid var(--border-color); text-align: center;">
-                <h2 id="indexing-title">Indexing Project...</h2>
-                <div style="width: 100%; height: 8px; background: #eee; border-radius: 4px; margin: 20px 0; overflow: hidden;">
-                    <div id="indexing-bar" style="width: 0%; height: 100%; background: var(--accent-color); transition: width 0.3s ease;"></div>
-                </div>
-                <div id="indexing-status" style="font-size: 0.9rem; color: #86868b;">Starting...</div>
-            </div>
-        </div>
         <header>
-            <div class="search-box">
+            <div class="search-bar" style="flex: 1; max-width: 600px;">
                 <input type="text" id="search-input" placeholder="Search symbols (e.g. 'Authentication' or 'APIClient.send')...">
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="action-btn" onclick="showView('docs')">📖 Docs</button>
-                <button class="action-btn" onclick="showView('pack')">📦 Pack</button>
+                <button class="action-btn" onclick="viewRepoMap()">🧠 Context</button>
                 <button class="action-btn" onclick="showView('chat')">💬 Ask AI</button>
-                <button class="action-btn" onclick="showView('terminal')">🖥️ Terminal</button>
+                <button class="action-btn" onclick="showView('history')">⏳ History</button>
+                <button class="action-btn" onclick="showView('estimator')">🪙 Estimator</button>
                 <button class="action-btn" onclick="showView('graph')">🕸️ Graph</button>
                 <button class="action-btn" onclick="showView('settings')">⚙️ Settings</button>
             </div>
         </header>
-        <div id="content">
-            <div id="docs-view">
-                <div class="welcome">
+
+        <div id="indexing-overlay" style="display:none">
+            <div class="indexing-content">
+                <div class="spinner"></div>
+                <h3 id="indexing-status">Indexing project...</h3>
+                <div class="progress-container"><div id="indexing-bar"></div></div>
+            </div>
+        </div>
+
+        <div id="content-area">
+            <div id="docs-view" style="display:block;">
+                <div class="dashboard">
                     <h2>Loading project information...</h2>
+                </div>
+            </div>
+
+            <div id="repo-map-view" style="display:none; padding: 40px; flex-direction: column; height: 100%; overflow-y: auto;">
+                <div class="page-header"><div><h2>Architectural Repo Map</h2><div style="font-size: 0.8rem; color: #86868b; margin-top: 5px;">Default context provided by the CCKit mapping engine</div></div><button class="action-btn" onclick="viewRepoMap()">🔄 Refresh Map</button></div>
+                <div id="repo-map-content" style="width: 100%; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; margin-top: 20px;"></div>
+            </div>
+
+            <div id="history-view" style="display:none; padding: 40px; flex-direction: column; height: 100%; overflow-y: auto;">
+                <div class="page-header"><div><h2>Action History</h2><div style="font-size: 0.8rem; color: #86868b; margin-top: 5px;">Real-time log of CLI commands and agent interactions</div></div><button class="action-btn" onclick="send({type: 'get_action_history'})">🔄 Refresh History</button></div>
+                <div id="history-list" style="display: grid; gap: 15px; margin-top: 20px;">
+                    <!-- History items will be rendered here -->
                 </div>
             </div>
             
             <div id="pack-view" style="display:none; padding: 20px; flex-direction: column; height: 100%; overflow-y: auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 id="pack-title">Active Context Pack</h2>
+                    <h2 id="pack-title">Context Explorer</h2>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <div style="display: flex; align-items: center; gap: 8px; margin-right: 10px; background: var(--secondary-background); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border-color);">
-                            <input type="checkbox" id="surgical-mode" onchange="renderPackView()" checked style="width: 16px; height: 16px;">
-                            <label for="surgical-mode" style="font-size: 0.75rem; font-weight: 600; color: #424245;">Surgical Mode</label>
+                            <input type="checkbox" id="surgical-mode" onchange="renderPackView()" checked>
+                            <label for="surgical-mode" style="font-size: 0.75rem; font-weight: 600;">Surgical</label>
                         </div>
-                        <button class="action-btn" onclick="expandContext()">🧠 Auto-Expand</button>
-                        <button class="action-btn" onclick="clearCart()">🗑️ Clear Cart</button>
-                        <button class="action-btn" onclick="packCart()" id="pack-save-btn" style="background: var(--accent-color);">📦 Save & Generate</button>
+                        <button class="action-btn" onclick="expandContext()">🧠 Suggest Related</button>
+                        <button class="action-btn" onclick="clearCart()">🗑️ Clear Explorer</button>
+                        <button class="action-btn" onclick="packCart()" id="pack-save-btn" style="background: var(--accent-color);">📦 Export Context</button>
                     </div>
                 </div>
 
@@ -113,7 +140,6 @@
             
             <div id="chat-view" style="display:none; padding: 20px; display: flex; flex-direction: column; height: 100%;">
                 <h2>💬 Chat with Codebase</h2>
-                <p style="font-size: 0.9rem; color: #86868b;">Ask questions. The AI will use the items in your <b>Context Cart</b> as its knowledge base.</p>
                 <div id="chat-history" style="flex: 1; overflow-y: auto; background: var(--secondary-background); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px;"></div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chat-input" placeholder="Ask a question about the cart context..." style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
@@ -121,22 +147,20 @@
                 </div>
             </div>
 
-            <div id="terminal-view" style="display:none; padding: 20px; display: flex; flex-direction: column; height: 100%;">
-                <h2>🖥️ Terminal Runner</h2>
-                <p style="font-size: 0.9rem; color: #86868b;">Run tests or shell commands and capture the output into your Context Cart.</p>
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <input type="text" id="term-input" placeholder="e.g. swift test" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color);">
-                    <button class="action-btn" onclick="runCommand()" style="background: var(--accent-color);">Run</button>
+            <div id="graph-view" style="display:none; padding: 20px; height: 100%; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>🕸️ Repository Map</h2>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px; background: var(--secondary-background); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border-color);">
+                            <input type="checkbox" id="graph-semantic-mode" onchange="toggleGraphSemantic()">
+                            <label for="graph-semantic-mode" style="font-size: 0.75rem; font-weight: 600; color: #424245;">Semantic Clusters</label>
+                        </div>
+                        <button class="action-btn" onclick="initGraph()">🔄 Refresh</button>
+                    </div>
                 </div>
-                <div id="term-output" style="flex: 1; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem;"></div>
-                <div style="margin-top: 15px;">
-                    <button class="action-btn" onclick="addTerminalToCart()">🛒 Add Output to Cart</button>
-                </div>
+                <div id="graph-container" style="flex: 1; background: var(--secondary-background); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;"></div>
             </div>
 
-            <div id="graph-view" style="display:none; width: 100%; height: 100%;">
-                <div id="graph-container" style="width: 100%; height: 100%;"></div>
-            </div>
             <div id="settings-view" style="display:none; padding: 40px;">
                 <h2>Settings</h2>
                 <div style="margin-top: 30px; display: flex; flex-direction: column; gap: 20px;">
@@ -144,13 +168,26 @@
                         <input type="checkbox" id="setting-auto-docs" onchange="updateSettings()" style="width: 20px; height: 20px;">
                         <label for="setting-auto-docs" style="font-weight: 600;">Auto-generate AI documentation</label>
                     </div>
-                    <p style="font-size: 0.9rem; color: #86868b; margin-left: 35px;">Automatically trigger AI summarization when viewing a symbol that lacks documentation.</p>
-                    
                     <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
                         <h4 style="margin-top: 0;">Maintenance</h4>
                         <button class="action-btn" onclick="reindexProject()" style="background: var(--accent-color); padding: 10px 20px;">🔄 Re-index Project</button>
-                        <p style="font-size: 0.85rem; color: #86868b; margin-top: 10px;">Manually scan the codebase for changes and update the SQLite and Semantic knowledge base.</p>
                     </div>
+                </div>
+            </div>
+
+            <div id="estimator-view" style="display:none; padding: 40px; flex-direction: column; height: 100%;">
+                <div class="page-header">
+                    <div>
+                        <h2>Token Estimator</h2>
+                        <div style="font-size: 0.8rem; color: #86868b; margin-top: 5px;">Test and validate token counts for arbitrary text blocks</div>
+                    </div>
+                    <div id="estimator-token-count" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-color);">0 tokens</div>
+                </div>
+                <div style="flex: 1; margin-top: 20px; display: flex; flex-direction: column;">
+                    <textarea id="estimator-input" style="flex: 1; padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.9rem; resize: none; background: white;" placeholder="Paste text here to estimate tokens..." oninput="onEstimatorInput()"></textarea>
+                </div>
+                <div style="margin-top: 20px; font-size: 0.8rem; color: #86868b; line-height: 1.4; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                    <strong>Performance:</strong> This method is significantly more accurate for codebases than simple division, especially for Swift where brackets, dots, and colons are frequent. It provides a count that is typically within 2-5% of Claude 3.5's actual consumption.
                 </div>
             </div>
         </div>

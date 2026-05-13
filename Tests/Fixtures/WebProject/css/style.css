@@ -1,0 +1,18 @@
+body {
+    background-color: white;
+}
+
+.main-container {
+    padding: 20px;
+}
+
+#header-title {
+    font-size: 24px;
+}
+
+.btn-primary {
+    border-radius: 4px;
+}
+.btn-secondary {
+    border-radius: 4px;
+}

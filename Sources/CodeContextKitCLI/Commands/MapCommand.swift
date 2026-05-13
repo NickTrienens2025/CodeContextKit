@@ -2,6 +2,7 @@ import ArgumentParser
 import Foundation
 import CodeContextKitStorage
 import CodeContextKitContext
+import CodeContextKitRetrieval
 
 struct MapCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -22,6 +23,7 @@ struct MapCommand: AsyncParsableCommand {
     var base: String = "main"
 
     func run() async throws {
+        let startTime = Date()
         let dbPath = ".cckit/index.sqlite"
         guard FileManager.default.fileExists(atPath: dbPath) else {
             print("Error: Index not found. Run 'cckit index' first.")
@@ -29,8 +31,15 @@ struct MapCommand: AsyncParsableCommand {
         }
         
         let db = try Database(path: dbPath)
-        let builder = RepoMapBuilder(db: db)
-        let map = try builder.buildMap(budget: budget, focusTerms: focus)
+        let wax = try await WaxStore(path: ".cckit/repo.wax")
+        let actionOrchestrator = ActionOrchestrator(db: db, wax: wax)
+        
+        let builder = RepoMapBuilder(db: db, counter: { text in await wax.countTokens(text) })
+        let map = try await builder.buildMap(budget: budget, focusTerms: focus)
+        
+        let duration = Int(Date().timeIntervalSince(startTime) * 1000)
+        let tokens = await wax.countTokens(map)
+        try await actionOrchestrator.recordCLIAction(command: "map --budget \(budget)", toolName: "Map Builder", durationMs: duration, tokensUsed: tokens)
         
         print(map)
     }

@@ -4,18 +4,26 @@ import CodeContextKitStorage
 import CodeContextKitRetrieval
 import CodeContextKitSwiftIndex
 
+/// Orchestrates the assembly of surgical context packets for AI consumption.
+///
+/// `ContextPacker` intelligently combines various sources of information into a single Markdown document:
+/// 1. **Architectural Map**: A budget-aware overview of the repository.
+/// 2. **Failure Analysis**: Extracts key error messages from provided log files.
+/// 3. **Dependency Crawling**: Automatically identifies and includes related code based on semantic search tasks.
+/// 4. **Surgical Precision**: Includes full bodies for primary targets and structural skeletons for supporting context.
+///
+/// Verified by: `WebContextTests.testWebContextPacking`
 public final class ContextPacker {
     private let db: Database
     private let wax: WaxStore
     private let rootPath: String
-    private let estimator = TokenEstimator()
     private let repoMapBuilder: RepoMapBuilder
     
     public init(db: Database, wax: WaxStore, rootPath: String = ".") {
         self.db = db
         self.wax = wax
         self.rootPath = rootPath
-        self.repoMapBuilder = RepoMapBuilder(db: db)
+        self.repoMapBuilder = RepoMapBuilder(db: db, counter: { text in await wax.countTokens(text) })
     }
     
     public func pack(task: String, budget: Int, failureLog: String? = nil) async throws -> String {
@@ -25,7 +33,7 @@ public final class ContextPacker {
         
         // 1. Repo Map (Budget 15%)
         let mapBudget = budget / 7
-        let repoMap = try repoMapBuilder.buildMap(budget: mapBudget, focusTerms: task)
+        let repoMap = try await repoMapBuilder.buildMap(budget: mapBudget, focusTerms: task)
         output += "## Repository Map\n\(repoMap)\n\n"
         
         // 2. Failure Summary
@@ -60,28 +68,39 @@ public final class ContextPacker {
         output += "## Surgical Context\n\n"
         
         let rootURL = URL(fileURLWithPath: rootPath)
+        var currentTokens = await wax.countTokens(output)
         
         // Full Bodies for Staged Files
         for path in stagedFiles {
+            if currentTokens > budget { break }
             let fullURL = rootURL.appendingPathComponent(path)
             if let content = try? String(contentsOf: fullURL, encoding: .utf8) {
                 let fileName = path.split(separator: "/").last!
-                output += "### \(fileName) (FULL)\n```swift\n\(content)\n```\n\n"
+                let section = "### \(fileName) (FULL)\n```swift\n\(content)\n```\n\n"
+                let sectionTokens = await wax.countTokens(section)
+                if currentTokens + sectionTokens < budget {
+                    output += section
+                    currentTokens += sectionTokens
+                }
             }
         }
         
         // Skeletons for Associated Files
         for (path, reason) in associatedFiles where !stagedFiles.contains(path) {
+            if currentTokens > budget { break }
             let symbols = try db.getSymbols(path: path)
             let skeleton = SwiftOutlineRenderer().render(filePath: path, symbols: symbols)
             let fileName = path.split(separator: "/").last!
-            output += "### \(fileName) (SKELETON - \(reason))\n\(skeleton)\n\n"
+            let section = "### \(fileName) (SKELETON - \(reason))\n\(skeleton)\n\n"
+            let sectionTokens = await wax.countTokens(section)
+            if currentTokens + sectionTokens < budget {
+                output += section
+                currentTokens += sectionTokens
+            }
         }
         
-        let totalTokens = estimator.estimate(output)
-        output += "## Stats\nEstimated total tokens: \(totalTokens)\nBudget: \(budget)\n"
-        
-        return output
+        let finalTokens = await wax.countTokens(output)
+        return "# Context Packet (Tokens: \(finalTokens)/\(budget))\n\n" + String(output.dropFirst(18))
     }
     
     private func extractFailureSummary(from logPath: String) -> String {

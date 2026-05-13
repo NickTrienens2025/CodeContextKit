@@ -26,6 +26,7 @@ struct PackCommand: AsyncParsableCommand {
     var failure: String?
 
     func run() async throws {
+        let startTime = Date()
         let dbPath = ".cckit/index.sqlite"
         let waxPath = ".cckit/repo.wax"
         
@@ -37,10 +38,15 @@ struct PackCommand: AsyncParsableCommand {
         
         let db = try Database(path: dbPath)
         let wax = try await WaxStore(path: waxPath)
+        let actionOrchestrator = ActionOrchestrator(db: db, wax: wax)
         let packer = ContextPacker(db: db, wax: wax, rootPath: ".")
         
         let packet = try await packer.pack(task: task, budget: budget, failureLog: failure)
         
+        let duration = Int(Date().timeIntervalSince(startTime) * 1000)
+        let tokens = await wax.countTokens(packet)
+        try await actionOrchestrator.recordCLIAction(command: "pack --task \"\(task)\"", toolName: "Context Packer", durationMs: duration, tokensUsed: tokens)
+
         if let outputPath = output {
             try packet.write(toFile: outputPath, atomically: true, encoding: .utf8)
             print("Context packet written to \(outputPath)")

@@ -4,3 +4,5 @@
 DerivedData/
 Packages/
 .swiftpm/
+*.sqlite
+*.wax

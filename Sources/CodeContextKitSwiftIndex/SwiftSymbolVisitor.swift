@@ -70,10 +70,38 @@ class SwiftSymbolVisitor: SyntaxVisitor {
         ))
     }
 
+    private func extractDocComment(from node: some SyntaxProtocol) -> String? {
+        let trivia = node.leadingTrivia
+        var comments: [String] = []
+        for piece in trivia {
+            switch piece {
+            case .docLineComment(let text):
+                comments.append(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "///", with: "").trimmingCharacters(in: .whitespaces))
+            case .docBlockComment(let text):
+                comments.append(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "/**", with: "").replacingOccurrences(of: "*/", with: "").trimmingCharacters(in: .whitespaces))
+            default:
+                break
+            }
+        }
+        return comments.isEmpty ? nil : comments.joined(separator: "\n")
+    }
+
+    private func extractAccessLevel(from modifiers: DeclModifierListSyntax) -> String? {
+        let accessLevels: Set<String> = ["open", "public", "internal", "fileprivate", "private"]
+        for modifier in modifiers {
+            let name = modifier.name.text
+            if accessLevels.contains(name) {
+                return name
+            }
+        }
+        return nil
+    }
+
     override func visit(_ node: StructDeclSyntax) -> SyntaxVisitorContinueKind {
         let name = node.name.text
-        let accessLevel = node.modifiers.first?.name.text
-        addSymbol(kind: .struct, name: name, signature: "struct \(name)", node: node, accessLevel: accessLevel)
+        let accessLevel = extractAccessLevel(from: node.modifiers)
+        let signature = "struct \(name)" + (node.genericParameterClause?.trimmedDescription ?? "") + (node.inheritanceClause?.trimmedDescription ?? "")
+        addSymbol(kind: .struct, name: name, signature: signature, node: node, docComment: extractDocComment(from: node), accessLevel: accessLevel)
         typeStack.append(name)
         activeScope = qualifiedName(for: name)
         return .visitChildren
@@ -86,8 +114,9 @@ class SwiftSymbolVisitor: SyntaxVisitor {
 
     override func visit(_ node: ClassDeclSyntax) -> SyntaxVisitorContinueKind {
         let name = node.name.text
-        let accessLevel = node.modifiers.first?.name.text
-        addSymbol(kind: .class, name: name, signature: "class \(name)", node: node, accessLevel: accessLevel)
+        let accessLevel = extractAccessLevel(from: node.modifiers)
+        let signature = "class \(name)" + (node.genericParameterClause?.trimmedDescription ?? "") + (node.inheritanceClause?.trimmedDescription ?? "")
+        addSymbol(kind: .class, name: name, signature: signature, node: node, docComment: extractDocComment(from: node), accessLevel: accessLevel)
         typeStack.append(name)
         activeScope = qualifiedName(for: name)
         return .visitChildren
@@ -100,8 +129,9 @@ class SwiftSymbolVisitor: SyntaxVisitor {
 
     override func visit(_ node: ActorDeclSyntax) -> SyntaxVisitorContinueKind {
         let name = node.name.text
-        let accessLevel = node.modifiers.first?.name.text
-        addSymbol(kind: .actor, name: name, signature: "actor \(name)", node: node, accessLevel: accessLevel)
+        let accessLevel = extractAccessLevel(from: node.modifiers)
+        let signature = "actor \(name)" + (node.genericParameterClause?.trimmedDescription ?? "") + (node.inheritanceClause?.trimmedDescription ?? "")
+        addSymbol(kind: .actor, name: name, signature: signature, node: node, docComment: extractDocComment(from: node), accessLevel: accessLevel)
         typeStack.append(name)
         activeScope = qualifiedName(for: name)
         return .visitChildren
@@ -114,8 +144,9 @@ class SwiftSymbolVisitor: SyntaxVisitor {
 
     override func visit(_ node: EnumDeclSyntax) -> SyntaxVisitorContinueKind {
         let name = node.name.text
-        let accessLevel = node.modifiers.first?.name.text
-        addSymbol(kind: .enum, name: name, signature: "enum \(name)", node: node, accessLevel: accessLevel)
+        let accessLevel = extractAccessLevel(from: node.modifiers)
+        let signature = "enum \(name)" + (node.genericParameterClause?.trimmedDescription ?? "") + (node.inheritanceClause?.trimmedDescription ?? "")
+        addSymbol(kind: .enum, name: name, signature: signature, node: node, docComment: extractDocComment(from: node), accessLevel: accessLevel)
         typeStack.append(name)
         activeScope = qualifiedName(for: name)
         return .visitChildren
@@ -126,10 +157,20 @@ class SwiftSymbolVisitor: SyntaxVisitor {
         activeScope = typeStack.last
     }
 
+    override func visit(_ node: EnumCaseDeclSyntax) -> SyntaxVisitorContinueKind {
+        for element in node.elements {
+            let name = element.name.text
+            let signature = "case " + element.trimmedDescription
+            addSymbol(kind: .case, name: name, signature: signature, node: element, docComment: extractDocComment(from: node))
+        }
+        return .visitChildren
+    }
+
     override func visit(_ node: ProtocolDeclSyntax) -> SyntaxVisitorContinueKind {
         let name = node.name.text
-        let accessLevel = node.modifiers.first?.name.text
-        addSymbol(kind: .protocol, name: name, signature: "protocol \(name)", node: node, accessLevel: accessLevel)
+        let accessLevel = extractAccessLevel(from: node.modifiers)
+        let signature = "protocol \(name)" + (node.inheritanceClause?.trimmedDescription ?? "")
+        addSymbol(kind: .protocol, name: name, signature: signature, node: node, docComment: extractDocComment(from: node), accessLevel: accessLevel)
         typeStack.append(name)
         activeScope = qualifiedName(for: name)
         return .visitChildren
@@ -142,7 +183,8 @@ class SwiftSymbolVisitor: SyntaxVisitor {
 
     override func visit(_ node: ExtensionDeclSyntax) -> SyntaxVisitorContinueKind {
         let name = node.extendedType.trimmedDescription
-        addSymbol(kind: .extension, name: name, signature: "extension \(name)", node: node)
+        let signature = "extension \(name)" + (node.inheritanceClause?.trimmedDescription ?? "")
+        addSymbol(kind: .extension, name: name, signature: signature, node: node, docComment: extractDocComment(from: node))
         typeStack.append(name)
         activeScope = qualifiedName(for: name)
         return .visitChildren
@@ -156,14 +198,14 @@ class SwiftSymbolVisitor: SyntaxVisitor {
     override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
         let name = node.name.text
         let signature = node.funcKeyword.text + " " + name + node.signature.trimmedDescription
-        let accessLevel = node.modifiers.first?.name.text
+        let accessLevel = extractAccessLevel(from: node.modifiers)
         
         var kind: SymbolRecord.Kind = .function
         if name.hasPrefix("test") && (currentEnclosingType()?.hasSuffix("Tests") == true || filePath.contains("Tests/")) {
             kind = .test
         }
         
-        addSymbol(kind: kind, name: name, signature: signature, node: node, accessLevel: accessLevel)
+        addSymbol(kind: kind, name: name, signature: signature, node: node, docComment: extractDocComment(from: node), accessLevel: accessLevel)
         activeScope = qualifiedName(for: name)
         return .visitChildren
     }
@@ -175,8 +217,8 @@ class SwiftSymbolVisitor: SyntaxVisitor {
     override func visit(_ node: InitializerDeclSyntax) -> SyntaxVisitorContinueKind {
         let name = "init"
         let signature = "init" + node.signature.trimmedDescription
-        let accessLevel = node.modifiers.first?.name.text
-        addSymbol(kind: .initializer, name: name, signature: signature, node: node, accessLevel: accessLevel)
+        let accessLevel = extractAccessLevel(from: node.modifiers)
+        addSymbol(kind: .initializer, name: name, signature: signature, node: node, docComment: extractDocComment(from: node), accessLevel: accessLevel)
         activeScope = qualifiedName(for: name)
         return .visitChildren
     }
@@ -205,9 +247,9 @@ class SwiftSymbolVisitor: SyntaxVisitor {
         if isMember {
             for binding in node.bindings {
                 if let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text {
-                    let accessLevel = node.modifiers.first?.name.text
+                    let accessLevel = extractAccessLevel(from: node.modifiers)
                     let typeAnnotation = binding.typeAnnotation?.trimmedDescription ?? ""
-                    addSymbol(kind: .property, name: name, signature: node.bindingSpecifier.text + " " + name + typeAnnotation, node: node, accessLevel: accessLevel)
+                    addSymbol(kind: .property, name: name, signature: node.bindingSpecifier.text + " " + name + typeAnnotation, node: node, docComment: extractDocComment(from: node), accessLevel: accessLevel)
                 }
             }
         }

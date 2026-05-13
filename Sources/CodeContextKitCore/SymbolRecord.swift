@@ -7,12 +7,16 @@ public struct SymbolRecord: Codable, Hashable, Sendable {
         case actor
         case `enum`
         case `protocol`
+        case interface
         case `extension`
         case function
+        case method
         case initializer
         case property
         case test
         case file
+        case style
+        case `case`
     }
 
     public struct Reference: Codable, Hashable, Sendable {
@@ -67,5 +71,29 @@ public struct SymbolRecord: Codable, Hashable, Sendable {
         self.accessLevel = accessLevel
         self.docComment = docComment
         self.estimatedTokens = estimatedTokens
+    }
+}
+
+public struct ActionRecord: Codable, Hashable, Sendable {
+    public var id: Int64?
+    public var prompt: String
+    public var toolName: String?
+    public var type: String // "cli" or "web"
+    public var tokensUsed: Int
+    public var durationMs: Int
+    public var status: String // "pending", "completed", "failed"
+    public var timestamp: Date
+    public var response: String?
+    
+    public init(id: Int64? = nil, prompt: String, toolName: String? = nil, type: String = "web", tokensUsed: Int = 0, durationMs: Int = 0, status: String = "pending", timestamp: Date = Date(), response: String? = nil) {
+        self.id = id
+        self.prompt = prompt
+        self.toolName = toolName
+        self.type = type
+        self.tokensUsed = tokensUsed
+        self.durationMs = durationMs
+        self.status = status
+        self.timestamp = timestamp
+        self.response = response
     }
 }
