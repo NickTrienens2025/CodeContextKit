@@ -5,9 +5,7 @@ public struct SwiftOutlineRenderer {
     public init() {}
     
     public func render(filePath: String, symbols: [SymbolRecord]) -> String {
-        let fileName = (filePath as NSString).lastPathComponent
-        var output = "### \(fileName)\n\n"
-        
+        var output = ""
         let sortedSymbols = symbols.sorted { $0.startLine < $1.startLine }
         
         for symbol in sortedSymbols {

@@ -1,0 +1,62 @@
+[
+  {
+    "mapTokens" : 90,
+    "cycle" : 1,
+    "naiveTokens" : 40,
+    "hash" : "80cd1065d6c2357a2cd80a9e6dfd081c8071034e",
+    "message" : "Commit 1",
+    "totalFiles" : 2,
+    "focusPreserved" : true,
+    "compressionRatio" : 0.44444444444444442
+  },
+  {
+    "cycle" : 2,
+    "message" : "Commit 2",
+    "mapTokens" : 109,
+    "focusPreserved" : true,
+    "naiveTokens" : 47,
+    "hash" : "694c2e08dae586c137c65e636fcad05e93eb326d",
+    "totalFiles" : 3,
+    "compressionRatio" : 0.43119266055045874
+  },
+  {
+    "totalFiles" : 4,
+    "hash" : "32a8d1b90d36d22eb87746bc9179816cdd1e8f93",
+    "focusPreserved" : true,
+    "compressionRatio" : 0.546875,
+    "message" : "Commit 3",
+    "cycle" : 3,
+    "naiveTokens" : 70,
+    "mapTokens" : 128
+  },
+  {
+    "compressionRatio" : 0.52380952380952384,
+    "totalFiles" : 5,
+    "cycle" : 4,
+    "hash" : "7d69a173e2f60eefdc1d1651932a39decaf580ce",
+    "focusPreserved" : true,
+    "mapTokens" : 147,
+    "naiveTokens" : 77,
+    "message" : "Commit 4"
+  },
+  {
+    "totalFiles" : 6,
+    "naiveTokens" : 84,
+    "cycle" : 5,
+    "compressionRatio" : 0.50602409638554213,
+    "message" : "Commit 5",
+    "hash" : "009bf2be17a8634103a6bdbd8ec58ef434635cbe",
+    "mapTokens" : 166,
+    "focusPreserved" : true
+  },
+  {
+    "focusPreserved" : true,
+    "compressionRatio" : 0.56756756756756754,
+    "cycle" : 6,
+    "naiveTokens" : 105,
+    "mapTokens" : 185,
+    "message" : "Commit 6",
+    "hash" : "50df41400217b0d2bc54918e94328ecc636fe61c",
+    "totalFiles" : 7
+  }
+]

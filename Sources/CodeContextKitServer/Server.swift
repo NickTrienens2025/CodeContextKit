@@ -205,11 +205,22 @@ public struct CodeContextServer: Sendable {
                         case "get_repo_map":
                             let budget = json["budget"] as? Int ?? 4096
                             let focus = json["focus"] as? String
-                            let builder = RepoMapBuilder(db: db, counter: { text in await wax.countTokens(text) })
-                            let map = try await builder.buildMap(budget: budget, focusTerms: focus)
-                            let response = ["type": "repo_map_content", "data": ["content": map, "budget": budget]]
-                            let responseData = try JSONSerialization.data(withJSONObject: response)
-                            try await outbound.write(.text(String(data: responseData, encoding: .utf8)!))
+                            let socket = outbound
+                            let state = indexingState
+                            
+                            Task {
+                                do {
+                                    let builder = RepoMapBuilder(db: db, counter: { text in await wax.countTokens(text) })
+                                    let delegate = WebSocketRepoMapProgressDelegate(state: state)
+                                    let map = try await builder.buildMap(budget: budget, focusTerms: focus, delegate: delegate)
+                                    
+                                    let response = ["type": "repo_map_content", "data": ["content": map, "budget": budget]]
+                                    let responseData = try JSONSerialization.data(withJSONObject: response)
+                                    try await socket.write(.text(String(data: responseData, encoding: .utf8)!))
+                                } catch {
+                                    print("Background map generation failed: \(error)")
+                                }
+                            }
 
                         case "get_action_history":
                             let history = try await actionOrchestrator.getRecentActions()
@@ -581,4 +592,18 @@ struct ServerProgressDelegate: IndexerProgressDelegate {
     func indexerDidProgress(completedFiles: Int, totalFiles: Int, currentFile: String) { Task { await state.update(completed: completedFiles, currentFile: currentFile); await state.broadcast(["type": "indexing_progress", "completed": completedFiles, "total": totalFiles, "file": currentFile]) } }
     func indexerDidFinish(updated: Int, skipped: Int, totalSymbols: Int) { Task { await state.finish(); await state.broadcast(["type": "indexing_finish", "updated": updated, "skipped": skipped, "symbols": totalSymbols]) } }
     func indexerDidFail(error: Error) { Task { await state.finish(); await state.broadcast(["type": "indexing_error", "error": error.localizedDescription]) } }
+}
+
+struct WebSocketRepoMapProgressDelegate: RepoMapProgressDelegate {
+    let state: IndexingState
+    func repoMapDidProgress(completed: Int, total: Int, currentFile: String) {
+        Task {
+            await state.broadcast([
+                "type": "map_progress",
+                "completed": completed,
+                "total": total,
+                "file": currentFile
+            ])
+        }
+    }
 }

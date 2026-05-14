@@ -21,7 +21,8 @@ let package = Package(
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird-websocket.git", from: "2.0.0"),
         .package(url: "https://github.com/unum-cloud/usearch.git", from: "2.16.0"),
-        .package(url: "https://github.com/christopherkarani/Wax.git", branch: "main")
+        .package(url: "https://github.com/christopherkarani/Wax.git", branch: "main"),
+        .package(url: "https://github.com/christopherkarani/ContextCore.git", branch: "main")
     ],
     targets: [
         .executableTarget(
@@ -83,7 +84,8 @@ let package = Package(
                 "CodeContextKitCore",
                 "CodeContextKitSwiftIndex",
                 "CodeContextKitStorage",
-                "CodeContextKitRetrieval"
+                "CodeContextKitRetrieval",
+                .product(name: "ContextCore", package: "ContextCore")
             ]
         ),
         .testTarget(

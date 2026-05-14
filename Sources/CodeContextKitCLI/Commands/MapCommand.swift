@@ -35,12 +35,21 @@ struct MapCommand: AsyncParsableCommand {
         let actionOrchestrator = ActionOrchestrator(db: db, wax: wax)
         
         let builder = RepoMapBuilder(db: db, counter: { text in await wax.countTokens(text) })
-        let map = try await builder.buildMap(budget: budget, focusTerms: focus)
+        let delegate = CommandLineRepoMapProgressDelegate()
+        let map = try await builder.buildMap(budget: budget, focusTerms: focus, delegate: delegate)
         
         let duration = Int(Date().timeIntervalSince(startTime) * 1000)
         let tokens = await wax.countTokens(map)
         try await actionOrchestrator.recordCLIAction(command: "map --budget \(budget)", toolName: "Map Builder", durationMs: duration, tokensUsed: tokens)
         
-        print(map)
+        print("\n" + map)
+    }
+}
+
+struct CommandLineRepoMapProgressDelegate: RepoMapProgressDelegate {
+    func repoMapDidProgress(completed: Int, total: Int, currentFile: String) {
+        let percent = Int(Double(completed) / Double(total) * 100)
+        print("\rRanking symbols: \(percent)% [\(completed)/\(total)] \(currentFile.split(separator: "/").last ?? "")", terminator: "")
+        fflush(stdout)
     }
 }

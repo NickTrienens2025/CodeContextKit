@@ -28,7 +28,6 @@ public final class ContextPacker {
     
     public func pack(task: String, budget: Int, failureLog: String? = nil) async throws -> String {
         var output = "# Context Packet\n\n"
-        output += "SYSTEM: cckit can find any file or symbol by short name. Full paths below are for reference only.\n\n"
         output += "## Task\n\(task)\n\n"
         
         // 1. Repo Map (Budget 15%)
@@ -75,7 +74,7 @@ public final class ContextPacker {
             if currentTokens > budget { break }
             let fullURL = rootURL.appendingPathComponent(path)
             if let content = try? String(contentsOf: fullURL, encoding: .utf8) {
-                let fileName = path.split(separator: "/").last!
+                let fileName = (path as NSString).lastPathComponent
                 let section = "### \(fileName) (FULL)\n```swift\n\(content)\n```\n\n"
                 let sectionTokens = await wax.countTokens(section)
                 if currentTokens + sectionTokens < budget {
@@ -90,8 +89,18 @@ public final class ContextPacker {
             if currentTokens > budget { break }
             let symbols = try db.getSymbols(path: path)
             let skeleton = SwiftOutlineRenderer().render(filePath: path, symbols: symbols)
-            let fileName = path.split(separator: "/").last!
-            let section = "### \(fileName) (SKELETON - \(reason))\n\(skeleton)\n\n"
+            let fileName = (path as NSString).lastPathComponent
+            let fileBase = (fileName as NSString).deletingPathExtension
+            
+            var section = ""
+            if symbols.count == 1, let sym = symbols.first, sym.name.lowercased() == fileBase.lowercased() {
+                // SINGLE SYMBOL OPTIMIZATION: Header IS the symbol signature
+                // Include doc comments in the body if they exist in skeleton
+                section = "### \(sym.signature) (SKELETON - \(reason))\n\(skeleton.replacingOccurrences(of: sym.signature, with: "").trimmingCharacters(in: .whitespacesAndNewlines))\n\n"
+            } else {
+                section = "### \(fileName) (SKELETON - \(reason))\n\(skeleton)\n\n"
+            }
+            
             let sectionTokens = await wax.countTokens(section)
             if currentTokens + sectionTokens < budget {
                 output += section
@@ -104,8 +113,6 @@ public final class ContextPacker {
     }
     
     private func extractFailureSummary(from logPath: String) -> String {
-        // Deterministic failure extraction logic
-        // For v1, just return the last few lines or look for "error:"
         do {
             let content = try String(contentsOfFile: logPath, encoding: .utf8)
             let lines = content.components(separatedBy: .newlines)

@@ -1,5 +1,5 @@
 {
-  "originHash" : "f86c60f1d23247c0a5f92332a0db6c456ee12cd58161d09583a4effe304c58db",
+  "originHash" : "e8f9ab1308485042a839d5593cad2c9d0d2586e1e706522cb391afbfc83ab8a8",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -17,6 +17,15 @@
       "state" : {
         "revision" : "e1caa19077dda4b00441142ef57da3db02acd466",
         "version" : "1.4.2"
+      }
+    },
+    {
+      "identity" : "contextcore",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/christopherkarani/ContextCore.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "f81d8f6ba18e415c35633ae3fd670456dbee9583"
       }
     },
     {

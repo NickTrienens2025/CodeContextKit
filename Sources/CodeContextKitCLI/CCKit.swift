@@ -21,6 +21,8 @@ struct CCKit: AsyncParsableCommand {
             EstimateCommand.self,
             ExplainCommand.self,
             SummarizeCommand.self,
+            HistoryBenchmarkCommand.self,
+            BenchmarkServeCommand.self,
             ServeCommand.self
         ],
         defaultSubcommand: IndexCommand.self

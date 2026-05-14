@@ -20,9 +20,18 @@ function loadScriptSafe(url, callback) {
     document.head.appendChild(script);
 }
 
-// Load ForceGraph immediately
+// Load Dependencies immediately
+let forceGraphReady = false;
+let d3Ready = false;
+
+loadScriptSafe('https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js', () => {
+    console.log('D3 ready.');
+    d3Ready = true;
+});
+
 loadScriptSafe('https://cdn.jsdelivr.net/npm/force-graph@1.43.0/dist/force-graph.min.js', () => {
-    console.log('ForceGraph ready callback triggered.');
+    console.log('ForceGraph ready.');
+    forceGraphReady = true;
 });
 
 // Monaco Setup
@@ -201,6 +210,13 @@ function handleMessage(message) {
             break;
         case 'repo_map_content':
             renderRepoMapContent(message.data);
+            break;
+        case 'map_progress':
+            const container = document.getElementById('repo-map-content');
+            if (container && container.innerText.includes('Generating')) {
+                const percent = Math.round((message.completed / message.total) * 100);
+                container.innerHTML = `<div style="padding: 40px; text-align: center;"><div style="color: #888; margin-bottom: 15px;">Ranking and compressing architectural map...</div><div style="font-weight: bold; font-size: 1.2rem; color: var(--accent-color);">${percent}%</div><div style="font-size: 0.8rem; color: #aaa; margin-top: 10px;">${message.file}</div></div>`;
+            }
             break;
         case 'action_history':
             renderActionHistory(message.data);
@@ -395,6 +411,12 @@ function updatePackGraph() {
     const rect = container.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) { console.warn('Pack graph container has no dimensions.'); return; }
 
+    if (!forceGraphReady || !d3Ready) { 
+        console.log('Waiting for graph libraries...');
+        setTimeout(updatePackGraph, 500); 
+        return; 
+    }
+
     const nodes = [{ id: 'Context Pack', label: 'Context Pack', group: 'root', val: 12 }];
     contextCart.forEach(item => {
         const label = item.path.includes('::') ? item.path.split('::')[0] : item.path.split('/').pop();
@@ -407,19 +429,56 @@ function updatePackGraph() {
     const FG = getForceGraph();
     if (FG) {
         if (!packGraph) {
-            packGraph = FG()(container).graphData({ nodes, links }).nodeAutoColorBy('topic').backgroundColor('rgba(0,0,0,0)').width(rect.width).height(rect.height)
+            packGraph = FG()(container)
+                .graphData({ nodes, links })
+                .nodeLabel(n => n.label || n.id)
+                .nodeAutoColorBy('topic')
+                .backgroundColor('rgba(0,0,0,0)')
+                .width(rect.width)
+                .height(rect.height)
                 .d3Force('charge', d3.forceManyBody().strength(-300))
                 .d3Force('collide', d3.forceCollide(node => 35))
-                .linkWidth(l => l.isSemantic ? 0 : 1).linkDirectionalParticles(l => l.isSemantic ? 0 : 2)
+                .linkWidth(l => l.isSemantic ? 0 : 1)
+                .linkDirectionalParticles(l => l.isSemantic ? 0 : 2)
                 .nodeCanvasObject((node, ctx, globalScale) => {
-                    const label = node.label; const fontSize = 14/globalScale;
-                    ctx.font = `${fontSize}px Sans-Serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillStyle = node.color; ctx.beginPath(); ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false); ctx.fill();
-                    ctx.fillStyle = 'black'; ctx.fillText(label, node.x, node.y + 10);
-                    if (node.topic && node.topic !== "General") { ctx.font = `${fontSize * 0.7}px Sans-Serif`; ctx.fillStyle = '#666'; ctx.fillText(node.topic, node.x, node.y + 20); }
+                    const label = node.label || node.id || 'node';
+                    const fontSize = Math.max(14/globalScale, 4);
+                    ctx.font = `${fontSize}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    // Node dot
+                    ctx.fillStyle = node.color || '#3182bd';
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, 8, 0, 2 * Math.PI, false);
+                    ctx.fill();
+                    
+                    // Draw label with white halo
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 3/globalScale;
+                    ctx.strokeText(label, node.x, node.y + 15);
+                    ctx.fillStyle = 'black';
+                    ctx.fillText(label, node.x, node.y + 15);
+                    
+                    if (node.topic && node.topic !== "General") { 
+                        const topicFontSize = fontSize * 0.7;
+                        ctx.font = `${topicFontSize}px sans-serif`; 
+                        ctx.strokeStyle = 'white';
+                        ctx.lineWidth = 2/globalScale;
+                        ctx.strokeText(node.topic, node.x, node.y + 30);
+                        ctx.fillStyle = '#666';
+                        ctx.fillText(node.topic, node.x, node.y + 30); 
+                    }
                 })
-                .onNodeClick(node => { if (node.group === 'file') viewFullFile(node.id); else if (node.group === 'symbol') viewSymbol(node.id.split('::')[0], node.id.split('::')[1]); showView('docs'); });
-        } else { packGraph.graphData({ nodes, links }); packGraph.width(rect.width).height(rect.height); }
+                .onNodeClick(node => { 
+                    if (node.group === 'file') viewFullFile(node.id); 
+                    else if (node.group === 'symbol') viewSymbol(node.id.split('::')[0], node.id.split('::')[1]); 
+                    showView('docs'); 
+                });
+        } else { 
+            packGraph.graphData({ nodes, links }); 
+            packGraph.width(rect.width).height(rect.height); 
+        }
     } else { setTimeout(updatePackGraph, 1000); }
 }
 
@@ -434,6 +493,13 @@ function initGraph() {
     if (!container || !graphData.nodes.length) return; 
     const rect = container.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) { setTimeout(initGraph, 300); return; }
+
+    if (!forceGraphReady || !d3Ready) {
+        console.log('Waiting for graph libraries...');
+        setTimeout(initGraph, 500);
+        return;
+    }
+
     const FG = getForceGraph();
     if (FG) { 
         let links = [...graphData.links];
@@ -441,18 +507,45 @@ function initGraph() {
         const nodes = graphData.nodes.map(n => ({ ...n, topic: semanticTopics[n.id] || "General" }));
         if (semanticMode) { semanticLinks.forEach(l => { links.push({ source: l.source, target: l.target, isSemantic: true, strength: l.strength }); }); }
         if (!graph) { 
-            graph = FG()(container).graphData({ nodes, links }).nodeAutoColorBy('topic').width(rect.width).height(rect.height)
+            graph = FG()(container)
+                .graphData({ nodes, links })
+                .nodeLabel(n => n.label || n.id)
+                .nodeAutoColorBy('topic')
+                .width(rect.width)
+                .height(rect.height)
                 .d3Force('charge', d3.forceManyBody().strength(-300))
                 .d3Force('collide', d3.forceCollide(node => 40))
-                .linkWidth(l => l.isSemantic ? 0 : 1).linkDirectionalParticles(l => l.isSemantic ? 0 : 2)
+                .linkWidth(l => l.isSemantic ? 0 : 1)
+                .linkDirectionalParticles(l => l.isSemantic ? 0 : 2)
                 .nodeCanvasObject((node, ctx, globalScale) => {
-                    const label = node.label || node.id; const fontSize = 12/globalScale;
-                    ctx.font = `${fontSize}px Sans-Serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillStyle = node.color; ctx.beginPath(); ctx.arc(node.x, node.y, 5, 0, 2 * Math.PI, false); ctx.fill();
-                    ctx.fillStyle = 'black'; ctx.fillText(label, node.x, node.y + 8);
+                    const label = node.label || node.id || 'node';
+                    const fontSize = Math.max(12/globalScale, 4);
+                    ctx.font = `${fontSize}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    // Node dot
+                    ctx.fillStyle = node.color || '#3182bd';
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false);
+                    ctx.fill();
+
+                    // Label with white halo
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 3/globalScale;
+                    ctx.strokeText(label, node.x, node.y + 12);
+                    ctx.fillStyle = 'black';
+                    ctx.fillText(label, node.x, node.y + 12);
                 })
-                .onNodeClick(node => { if (node.group === 'file') viewFullFile(node.id); else if (node.group === 'root') viewDashboard(); showView('docs'); }); 
-        } else { graph.graphData({ nodes, links }); graph.width(rect.width).height(rect.height); } 
+                .onNodeClick(node => { 
+                    if (node.group === 'file') viewFullFile(node.id); 
+                    else if (node.group === 'root') viewDashboard(); 
+                    showView('docs'); 
+                }); 
+        } else { 
+            graph.graphData({ nodes, links }); 
+            graph.width(rect.width).height(rect.height); 
+        } 
     } else { setTimeout(initGraph, 1000); }
 }
 
@@ -752,31 +845,6 @@ function renderRepoMapContent(data) {
     container.innerHTML = '';
     container.style.minHeight = '400px';
     initMonaco('repo-map-content', data.content, 'markdown');
-}
-
-function toggleGraphSemantic() { if (document.getElementById('graph-semantic-mode').checked) { send({ type: 'get_semantic_graph' }); } else { semanticLinks = []; semanticTopics = {}; initGraph(); } }
-
-function initGraph() { 
-    const container = document.getElementById('graph-container'); if (!container || !graphData.nodes.length) return; 
-    const rect = container.getBoundingClientRect(); if (rect.width === 0 || rect.height === 0) { setTimeout(initGraph, 300); return; }
-    const FG = getForceGraph();
-    if (FG) { 
-        let links = [...graphData.links]; const semanticMode = document.getElementById('graph-semantic-mode')?.checked ?? false;
-        const nodes = graphData.nodes.map(n => ({ ...n, topic: semanticTopics[n.id] || "General" }));
-        if (semanticMode) { semanticLinks.forEach(l => { links.push({ source: l.source, target: l.target, isSemantic: true, strength: l.strength }); }); }
-        if (!graph) { 
-            graph = FG()(container).graphData({ nodes, links }).nodeAutoColorBy('topic').width(rect.width).height(rect.height)
-                .d3Force('charge', d3.forceManyBody().strength(-300))
-                .d3Force('collide', d3.forceCollide(node => 40))
-                .linkWidth(l => l.isSemantic ? 0 : 1).linkDirectionalParticles(l => l.isSemantic ? 0 : 2)
-                .nodeCanvasObject((node, ctx, globalScale) => {
-                    const label = node.label || node.id; const fontSize = 12/globalScale;
-                    ctx.font = `${fontSize}px Sans-Serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillStyle = node.color; ctx.beginPath(); ctx.arc(node.x, node.y, 5, 0, 2 * Math.PI, false); ctx.fill();
-                    ctx.fillStyle = 'black'; ctx.fillText(label, node.x, node.y + 8);
-                }).onNodeClick(node => { if (node.group === 'file') viewFullFile(node.id); else if (node.group === 'root') viewDashboard(); showView('docs'); }); 
-        } else { graph.graphData({ nodes, links }); graph.width(rect.width).height(rect.height); } 
-    } else { setTimeout(initGraph, 1000); }
 }
 
 function escapeHtml(unsafe) { return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
