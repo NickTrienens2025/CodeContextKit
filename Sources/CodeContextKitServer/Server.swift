@@ -107,7 +107,11 @@ public struct CodeContextServer: Sendable {
             print("WebSocket connected (ID: \(socketId))")
             await indexingState.addSocket(outbound, id: socketId)
             
-            let config = ["type": "config", "data": ["projectName": projectName, "readme": readmeContent]]
+            let config = ["type": "config", "data": [
+                "projectName": projectName, 
+                "readme": readmeContent,
+                "surgicalProtocol": Config.surgicalAgenticProtocol
+            ]]
             if let configData = try? JSONSerialization.data(withJSONObject: config) { 
                 try? await outbound.write(.text(String(data: configData, encoding: .utf8)!)) 
             }
