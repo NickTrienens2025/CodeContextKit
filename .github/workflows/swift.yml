@@ -22,6 +22,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Set up Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: "6.0"
+
+    - name: Fix git ownership
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
     - name: Build
       run: swift build -v
       

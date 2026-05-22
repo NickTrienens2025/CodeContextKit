@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "CodeContextKit",
     platforms: [
-        .macOS(.v15)
+        .macOS(.v14)
     ],
     products: [
         .executable(name: "cckit", targets: ["CodeContextKitCLI"]),
