@@ -17,17 +17,17 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Swift
-      uses: swift-actions/setup-swift@v2
+    - name: Select Xcode 16.4
+      uses: maxim-lobanov/setup-xcode@v1
       with:
-        swift-version: "6.2"
+        xcode-version: '16.4'
 
     - name: Fix git ownership
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
