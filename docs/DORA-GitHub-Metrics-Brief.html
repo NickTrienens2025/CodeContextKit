@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DORA Metrics for CodeContextKit</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "base",
+        themeVariables: {
+          primaryColor: "#e9f6f2",
+          primaryTextColor: "#172033",
+          primaryBorderColor: "#6ab7a8",
+          lineColor: "#547085",
+          secondaryColor: "#fff7e8",
+          tertiaryColor: "#eaf0f7",
+          fontFamily: "Arial, Helvetica, sans-serif"
+        }
+      });
+    });
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #eef2f7;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.35;
+    }
+    .page {
+      width: 8.5in;
+      min-height: 11in;
+      margin: 0 auto;
+      background: #f8fafc;
+    }
+    .hero {
+      padding: 0.42in 0.58in 0.32in;
+      background: #152238;
+      color: #fff;
+    }
+    .eyebrow {
+      margin: 0 0 0.08in;
+      color: #8fd0c4;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0;
+      max-width: 7in;
+      font-size: 29px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+    .hero p {
+      max-width: 7in;
+      margin: 0.14in 0 0;
+      color: #dbe8f5;
+      font-size: 13px;
+    }
+    .content { padding: 0.28in 0.58in 0.34in; }
+    h2 {
+      margin: 0 0 0.1in;
+      font-size: 15px;
+      color: #172033;
+    }
+    h3 {
+      margin: 0 0 0.06in;
+      font-size: 12.5px;
+      color: #172033;
+    }
+    p, li {
+      font-size: 10.5px;
+      color: #445066;
+    }
+    p { margin: 0; }
+    ul {
+      margin: 0;
+      padding-left: 0.17in;
+    }
+    .lead {
+      margin: 0 0 0.17in;
+      color: #253044;
+      font-size: 12px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.12in;
+      margin-bottom: 0.18in;
+    }
+    .card {
+      min-height: 1.06in;
+      padding: 0.13in;
+      background: #fff;
+      border: 1px solid #d9e1eb;
+      border-radius: 8px;
+    }
+    .metric {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 0.1in;
+    }
+    .tag {
+      display: inline-block;
+      margin-bottom: 0.06in;
+      padding: 0.025in 0.07in;
+      border-radius: 999px;
+      background: #e3f4ef;
+      color: #11614f;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .callout {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 0.14in;
+      padding: 0.16in;
+      margin-bottom: 0.18in;
+      background: #fff7e8;
+      border: 1px solid #ead4aa;
+      border-radius: 8px;
+    }
+    .diagram-section {
+      margin-bottom: 0.18in;
+      padding: 0.16in;
+      background: #ffffff;
+      border: 1px solid #d9e1eb;
+      border-radius: 8px;
+      page-break-inside: avoid;
+    }
+    .diagram-section h2 {
+      margin-bottom: 0.06in;
+    }
+    .diagram-section p {
+      margin-bottom: 0.1in;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      overflow: visible;
+      font-size: 10px;
+    }
+    .table {
+      display: grid;
+      grid-template-columns: 1.1fr 1.3fr 1.35fr;
+      border: 1px solid #d9e1eb;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 0.18in;
+      background: #fff;
+    }
+    .table div {
+      padding: 0.08in;
+      border-right: 1px solid #e3e8ef;
+      border-bottom: 1px solid #e3e8ef;
+      font-size: 9.6px;
+      color: #445066;
+    }
+    .table div:nth-child(3n) { border-right: 0; }
+    .table .head {
+      background: #eaf0f7;
+      color: #172033;
+      font-weight: 700;
+    }
+    .bottom-line {
+      padding: 0.13in 0.15in;
+      background: #e9f6f2;
+      border: 1px solid #bdddd4;
+      border-radius: 8px;
+      color: #123d35;
+      font-size: 10.6px;
+    }
+    .sources {
+      margin-top: 0.11in;
+      color: #667085;
+      font-size: 8.8px;
+    }
+    .sources a { color: #35637d; text-decoration: none; }
+    @media print {
+      body { background: white; }
+      .page { margin: 0; box-shadow: none; }
+      @page { size: letter; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <p class="eyebrow">Delivery intelligence brief</p>
+      <h1>DORA metrics for CodeContextKit using only GitHub Issues, PRs, and Releases.</h1>
+      <p>CodeContextKit can start measuring delivery health without adding Jira, incident tooling, or deployment telemetry. Treat GitHub Releases as production deployments, PRs as changes, and Issues as the demand, recovery, and adoption record.</p>
+    </section>
+
+    <section class="content">
+      <h2>Recommended measurement model</h2>
+      <p class="lead">DORA now describes five software delivery performance metrics. For this repo, use the five-metric model but make the first release narrow: delivery timing, release cadence, release failure signals, and adoption.</p>
+
+      <div class="grid">
+        <article class="card metric">
+          <div>
+            <span class="tag">Timing</span>
+            <h3>Change lead time</h3>
+            <p>For each merged PR included in a release, measure from first commit or PR open time to the GitHub Release `published_at` timestamp.</p>
+          </div>
+          <ul>
+            <li>Median and p90 by release</li>
+            <li>Queue time: PR open to merge</li>
+            <li>Release wait: merge to release</li>
+          </ul>
+        </article>
+        <article class="card metric">
+          <div>
+            <span class="tag">Cadence</span>
+            <h3>Deployment frequency</h3>
+            <p>Count published GitHub Releases per week or month. Pre-releases can be tracked separately if they are not the installable tool release.</p>
+          </div>
+          <ul>
+            <li>Releases per month</li>
+            <li>Days between releases</li>
+            <li>Version size by PR count</li>
+          </ul>
+        </article>
+        <article class="card metric">
+          <div>
+            <span class="tag">Stability</span>
+            <h3>Change fail rate</h3>
+            <p>Mark a release as failed when a post-release issue is labeled `regression`, `release-blocker`, or `hotfix`, or when a follow-up release explicitly links to a failed release.</p>
+          </div>
+          <ul>
+            <li>Failed releases / total releases</li>
+            <li>Failure category labels</li>
+            <li>Hotfix release count</li>
+          </ul>
+        </article>
+        <article class="card metric">
+          <div>
+            <span class="tag">Recovery</span>
+            <h3>Failed deployment recovery time</h3>
+            <p>For release failures, measure from the first failure issue timestamp to the next release that closes or references the recovery issue.</p>
+          </div>
+          <ul>
+            <li>Median recovery hours</li>
+            <li>Open failures aging</li>
+            <li>Recovery release link</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout">
+        <div>
+          <h2>Adoption layer</h2>
+          <p>DORA says whether delivery is improving; adoption says whether releases matter. For CodeContextKit, pair delivery metrics with release asset downloads, clone/view traffic, install issues, and recurring contributor activity.</p>
+        </div>
+        <ul>
+          <li>Release downloads by asset and version.</li>
+          <li>Repository clones and page views over GitHub's rolling traffic window.</li>
+          <li>Issues labeled `install`, `usage`, `feedback`, or `feature-request` after each release.</li>
+          <li>Time from feature issue opened to release containing the closing PR.</li>
+        </ul>
+      </div>
+
+      <section class="diagram-section">
+        <h2>Measurement flow</h2>
+        <p>The collector can run on a schedule or after a release. It snapshots GitHub data, normalizes delivery events, computes DORA and adoption metrics, then publishes a static report back into the repository.</p>
+        <pre class="mermaid">
+flowchart LR
+  subgraph GitHub["GitHub data sources"]
+    Issues["Issues and labels<br/>install, usage, feedback,<br/>regression, hotfix"]
+    PRs["Pull requests<br/>created_at, merged_at,<br/>commits, linked issues"]
+    Releases["Releases<br/>published_at, tag,<br/>assets, notes"]
+    Traffic["Traffic API<br/>clones and views<br/>rolling window"]
+  end
+
+  subgraph Collector["Metrics collector"]
+    Snapshot["Daily snapshot<br/>persist raw API payloads"]
+    Normalize["Normalize events<br/>deployments, changes,<br/>failures, adoption"]
+    Link["Link records<br/>release to PRs to issues"]
+  end
+
+  subgraph Metrics["Computed outputs"]
+    LeadTime["Change lead time<br/>commit or PR open to release"]
+    Frequency["Deployment frequency<br/>releases per period"]
+    Failure["Change fail rate<br/>failed releases / releases"]
+    Recovery["Recovery time<br/>failure issue to fix release"]
+    Adoption["Adoption<br/>downloads, clones, views,<br/>usage and feedback issues"]
+  end
+
+  subgraph Report["Repo-visible reporting"]
+    StaticReport["Static HTML or Markdown<br/>docs/metrics/latest"]
+    ReleaseNotes["Release annotations<br/>metric deltas per version"]
+    Retro["Planning input<br/>bottlenecks and adoption signals"]
+  end
+
+  Issues --> Snapshot
+  PRs --> Snapshot
+  Releases --> Snapshot
+  Traffic --> Snapshot
+  Snapshot --> Normalize --> Link
+  Link --> LeadTime
+  Link --> Frequency
+  Link --> Failure
+  Link --> Recovery
+  Link --> Adoption
+  LeadTime --> StaticReport
+  Frequency --> StaticReport
+  Failure --> StaticReport
+  Recovery --> StaticReport
+  Adoption --> StaticReport
+  StaticReport --> ReleaseNotes
+  StaticReport --> Retro
+        </pre>
+      </section>
+
+      <h2>GitHub-only implementation</h2>
+      <div class="table">
+        <div class="head">Need</div>
+        <div class="head">GitHub source</div>
+        <div class="head">Implementation note</div>
+        <div>Release/deployment record</div>
+        <div>REST Releases API: list releases, release assets, `published_at`, tag, target commit.</div>
+        <div>Normalize every non-draft Release into a `deployments` table. Treat `prerelease` as a separate channel unless you intend it to count.</div>
+        <div>PR timings</div>
+        <div>REST Pull Requests API: `created_at`, `merged_at`, commits, labels via the linked issue endpoint.</div>
+        <div>Map release tags to merged PRs by commit range, release notes references, or closing keywords. Store both PR-open and first-commit lead times.</div>
+        <div>Issue workflow</div>
+        <div>REST Issues Timeline API: labels, comments, cross references, close events, and timestamps.</div>
+        <div>Require lightweight labels: `regression`, `hotfix`, `release-blocker`, `install`, `usage`, `feedback`, `feature-request`.</div>
+        <div>Adoption</div>
+        <div>Release assets and repository traffic APIs.</div>
+        <div>Persist daily snapshots because GitHub traffic endpoints expose a limited recent window. Downloads are cumulative, so calculate deltas.</div>
+      </div>
+
+      <div class="grid">
+        <article class="card">
+          <h3>First dashboard</h3>
+          <p>Start with a generated Markdown or static HTML report in `docs/metrics/`: latest release, releases per month, median lead time, p90 PR age, failed release count, recovery age, download deltas, clone/view deltas, and top adoption issues.</p>
+        </article>
+        <article class="card">
+          <h3>Working agreements</h3>
+          <p>Keep labels strict, link every release to included PRs, require failure issues to reference the release, and snapshot traffic daily. The measurement quality depends more on these habits than on complex analytics.</p>
+        </article>
+      </div>
+
+      <div class="bottom-line"><strong>Bottom line:</strong> implement this as a small GitHub data collector plus a static report; use DORA metrics to improve release flow and use adoption signals to decide whether each CodeContextKit release is reaching real users.</div>
+      <p class="sources">Sources: <a href="https://dora.dev/guides/dora-metrics/">DORA software delivery metrics</a>, <a href="https://docs.github.com/en/rest/pulls/pulls">GitHub Pull Requests REST API</a>, <a href="https://docs.github.com/en/rest/issues/timeline">GitHub Issues Timeline REST API</a>, <a href="https://docs.github.com/en/rest/releases">GitHub Releases REST API</a>, <a href="https://docs.github.com/en/rest/metrics/traffic">GitHub Traffic REST API</a>.</p>
+    </section>
+  </main>
+</body>
+</html>

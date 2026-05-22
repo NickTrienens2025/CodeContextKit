@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mobile Engineering Operating Model</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "base",
+        themeVariables: {
+          primaryColor: "#edf7f3",
+          primaryTextColor: "#172033",
+          primaryBorderColor: "#5fa994",
+          lineColor: "#61758d",
+          secondaryColor: "#fff4df",
+          tertiaryColor: "#eaf0f7",
+          fontFamily: "Arial, Helvetica, sans-serif"
+        }
+      });
+    });
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #eef2f6;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.42;
+    }
+    .page {
+      width: 8.5in;
+      min-height: 11in;
+      margin: 0 auto;
+      background: #f8fafc;
+    }
+    .hero {
+      padding: 0.52in 0.62in 0.4in;
+      background: #142033;
+      color: #fff;
+    }
+    .eyebrow {
+      margin: 0 0 0.1in;
+      color: #94d9ca;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    h1 {
+      max-width: 7.1in;
+      margin: 0;
+      font-size: 31px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+    .hero p {
+      max-width: 7.1in;
+      margin: 0.16in 0 0;
+      color: #d9e6f4;
+      font-size: 13px;
+    }
+    .content { padding: 0.34in 0.62in 0.46in; }
+    section { margin-bottom: 0.28in; }
+    h2 {
+      margin: 0 0 0.11in;
+      font-size: 17px;
+      color: #172033;
+    }
+    h3 {
+      margin: 0 0 0.07in;
+      font-size: 13px;
+      color: #172033;
+    }
+    p, li {
+      font-size: 10.7px;
+      color: #435169;
+    }
+    p { margin: 0 0 0.1in; }
+    ul {
+      margin: 0;
+      padding-left: 0.18in;
+    }
+    .lead {
+      color: #263348;
+      font-size: 12.4px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.14in;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.12in;
+    }
+    .card {
+      padding: 0.14in;
+      background: #fff;
+      border: 1px solid #d8e0eb;
+      border-radius: 8px;
+      break-inside: avoid;
+    }
+    .callout {
+      padding: 0.16in;
+      background: #fff4df;
+      border: 1px solid #e8d2a9;
+      border-radius: 8px;
+      break-inside: avoid;
+    }
+    .tag {
+      display: inline-block;
+      margin-bottom: 0.06in;
+      padding: 0.025in 0.07in;
+      border-radius: 999px;
+      background: #e5f4ef;
+      color: #12614f;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .table {
+      display: grid;
+      border: 1px solid #d8e0eb;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      margin-bottom: 0.15in;
+      break-inside: avoid;
+    }
+    .cols-2 { grid-template-columns: 1fr 1.6fr; }
+    .cols-3 { grid-template-columns: 1fr 1.2fr 1.6fr; }
+    .cols-4 { grid-template-columns: 0.9fr 1fr 1fr 1.2fr; }
+    .table div {
+      padding: 0.08in;
+      border-right: 1px solid #e4e9f0;
+      border-bottom: 1px solid #e4e9f0;
+      color: #435169;
+      font-size: 9.7px;
+    }
+    .cols-2 div:nth-child(2n),
+    .cols-3 div:nth-child(3n),
+    .cols-4 div:nth-child(4n) { border-right: 0; }
+    .table .head {
+      background: #eaf0f7;
+      color: #172033;
+      font-weight: 700;
+    }
+    .diagram {
+      padding: 0.16in;
+      background: #fff;
+      border: 1px solid #d8e0eb;
+      border-radius: 8px;
+      break-inside: avoid;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      overflow: visible;
+      font-size: 10px;
+    }
+    .sources {
+      padding-top: 0.12in;
+      border-top: 1px solid #d8e0eb;
+      color: #667085;
+      font-size: 9px;
+    }
+    .sources a { color: #35637d; text-decoration: none; }
+    @media print {
+      body { background: white; }
+      .page { margin: 0; }
+      @page { size: letter; margin: 0.35in 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">Operating model</p>
+      <h1>Mobile engineering performance from request to production outcome.</h1>
+      <p>Use Jira as the product and work-intake spine, GitLab as the engineering and delivery spine, and a thin metrics layer that joins requests, merge requests, pipelines, mobile releases, production quality, adoption, and AI-assisted work.</p>
+    </header>
+
+    <div class="content">
+      <section>
+        <h2>Executive intent</h2>
+        <p class="lead">The morning view should answer whether important work is moving from request to shipped app capability faster, with acceptable quality, lower production risk, and measurable customer impact. It should not become developer surveillance or a scoreboard of individual activity.</p>
+        <div class="grid">
+          <article class="card">
+            <span class="tag">Flow</span>
+            <h3>How fast does important work move?</h3>
+            <p>Measure request-to-production lead time, engineering cycle time, review latency, release wait, and aging work. Break the total time into phases so leaders see the actual constraint.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Quality</span>
+            <h3>Are releases safe?</h3>
+            <p>Pair DORA stability metrics with mobile-specific crash-free sessions, crash-free users, hotfixes, rollback/config mitigations, flaky tests, and pipeline health.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Impact</span>
+            <h3>Are shipped capabilities used?</h3>
+            <p>Track adoption by app version, feature engagement where instrumented, playback or AirPlay success, usage issues, feedback themes, and business-outcome tags.</p>
+          </article>
+          <article class="card">
+            <span class="tag">AI leverage</span>
+            <h3>Is AI improving outcomes?</h3>
+            <p>Measure AI at the work-item and workflow level: cycle-time deltas, review churn, tests added, escaped defects, triage throughput, and developer confidence.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="diagram">
+        <h2>End-to-end flow</h2>
+        <pre class="mermaid">
+flowchart LR
+  A["Request / Initiative / Epic"] --> B["Jira Story / Bug / Task"]
+  B --> C["GitLab Branch / MR"]
+  C --> D["Pipeline<br/>Build + Test + Quality"]
+  D --> E["Mobile Release Event<br/>TestFlight / App Store / rollout"]
+  E --> F["Production Outcome<br/>Crash, performance, adoption, engagement"]
+  F --> G["Executive Dashboard<br/>Morning view + weekly operating review"]
+
+  B -. "product area, platform,<br/>priority, SLA, AI labels" .-> H["Metrics Contract"]
+  C -. "MR labels, Jira key,<br/>review and merge events" .-> H
+  D -. "pipeline duration,<br/>test and quality artifacts" .-> H
+  E -. "version, build, SHA,<br/>rollout and release timestamps" .-> H
+  F -. "version/build linked<br/>to issues and incidents" .-> H
+  H --> G
+        </pre>
+      </section>
+
+      <section>
+        <h2>Peter top 10</h2>
+        <div class="table cols-3">
+          <div class="head">Metric</div><div class="head">Source</div><div class="head">Why it matters</div>
+          <div>Request-to-production lead time</div><div>Jira + GitLab + release data</div><div>Shows the leadership story: how long from ask to shipped capability.</div>
+          <div>Engineering cycle time</div><div>Jira + GitLab</div><div>Separates active delivery time from shaping and release waiting.</div>
+          <div>Deployment/release frequency</div><div>GitLab CI/CD + mobile release records</div><div>DORA velocity signal, adapted for app releases and release trains.</div>
+          <div>Change failure rate</div><div>GitLab deployments + incidents/crashes</div><div>DORA stability signal: releases that triggered hotfixes, incidents, rollbacks, or severe regressions.</div>
+          <div>Crash-free sessions/users by app version</div><div>Crashlytics/Firebase or equivalent</div><div>Mobile-specific production quality by released version.</div>
+          <div>Top crash families by user impact</div><div>Crash tooling + Jira/GitLab links</div><div>Focuses leaders on the quality work with the largest customer effect.</div>
+          <div>Pipeline health</div><div>GitLab CI</div><div>Shows build/test reliability, flaky tests, and blocked delivery.</div>
+          <div>MR review latency</div><div>GitLab</div><div>Shows collaboration bottlenecks without reducing output to developer activity counts.</div>
+          <div>WIP and aging work</div><div>Jira</div><div>Shows hidden inventory and flow risk before it appears as missed dates.</div>
+          <div>AI-assisted work outcome</div><div>Jira/GitLab labels + lightweight survey</div><div>Tracks leverage without rewarding performative AI usage.</div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Jira as product flow spine</h2>
+        <p>Jira should be the authoritative record for what work is requested, prioritized, shaped, accepted, and validated. Its value depends on clean state transitions and consistent fields, because flow metrics are only as good as the timestamp trail.</p>
+        <div class="table cols-2">
+          <div class="head">Required field</div><div class="head">Purpose</div>
+          <div>Request Source</div><div>Sponsor, partner, marketing, product, ops, customer bug, internal tech.</div>
+          <div>Product Area</div><div>Scores, GameCenter, VideoCast, AirPlay, Stats, Auth, Notifications, Platform.</div>
+          <div>Platform</div><div>iOS, Android, shared backend, web, tvOS, watchOS.</div>
+          <div>Work Type</div><div>Feature, bug, crash fix, tech debt, experiment, operational.</div>
+          <div>Priority / SLA Class</div><div>Executive ask, game-day blocker, normal roadmap, maintenance.</div>
+          <div>Target Release</div><div>Release train, app version, or rollout window.</div>
+          <div>Business Outcome</div><div>Engagement, reliability, retention, partner obligation, compliance, cost.</div>
+          <div>AI Assisted?</div><div>None, research, triage, coding, test generation, review, documentation, automation, analysis.</div>
+          <div>AI Risk Level</div><div>Low, medium, high, security-sensitive, user-data-sensitive.</div>
+        </div>
+        <div class="table cols-2">
+          <div class="head">Workflow metric</div><div class="head">Definition</div>
+          <div>Product lead time</div><div>Intake to Released.</div>
+          <div>Shaping time</div><div>Intake to Ready for Engineering.</div>
+          <div>Engineering cycle time</div><div>In Progress to merged, Ready for QA, or Ready for Release depending on the team contract.</div>
+          <div>Release wait time</div><div>Ready for Release to Released.</div>
+          <div>Validation time</div><div>Released to Validated.</div>
+          <div>Backlog aging</div><div>Time in Intake, Shaped, or Ready for Engineering.</div>
+          <div>WIP</div><div>Count of active items in In Progress, In Review, QA, and release-prep states.</div>
+        </div>
+      </section>
+
+      <section>
+        <h2>GitLab as engineering delivery spine</h2>
+        <p>GitLab should be the authoritative record for branch, merge request, review, pipeline, build, release, and deployment events. DORA metrics and Value Stream Analytics can provide native reference points, while custom extraction fills the mobile-specific gaps.</p>
+        <div class="callout">
+          <h3>Required convention</h3>
+          <p>Every branch and MR title must include the Jira issue key. Example branch: <strong>mobile-1842-fix-scores-date-scroll-crash</strong>. Example MR title: <strong>MOBILE-1842 Fix Scores date-scroll crash on iOS 18</strong>. Labels should include platform, product area, type, risk, AI involvement, and release train.</p>
+        </div>
+        <div class="table cols-4">
+          <div class="head">Signal</div><div class="head">Source</div><div class="head">Used for</div><div class="head">Notes</div>
+          <div>MR created / merged</div><div>GitLab MR</div><div>Engineering cycle, review wait, merge throughput</div><div>A diagnostic signal, not an individual productivity score.</div>
+          <div>First commit</div><div>Git commits</div><div>Lead time for changes</div><div>Useful alongside PR/MR-open lead time.</div>
+          <div>First review / approvals</div><div>MR notes and approvals</div><div>Review latency and collaboration bottlenecks</div><div>Track team/service-level response, not reviewer ranking.</div>
+          <div>Pipeline duration / failures</div><div>GitLab CI</div><div>Build reliability and blocked flow</div><div>Store retries and flaky-test evidence separately.</div>
+          <div>Test and quality output</div><div>CI artifacts</div><div>Quality trend and risk scoring</div><div>Use existing test, coverage, code-quality, and static-analysis reports.</div>
+          <div>Release build metadata</div><div>CI job metadata</div><div>Mobile release linkage</div><div>Must include commit SHA, app version, build number, platform, and channel.</div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Mobile release model</h2>
+        <p>Classic DORA assumes production deployment is clear. Mobile delivery needs a richer event model because merged code may pass through QA, TestFlight, App Store review, phased rollout, user adoption, and meaningful production exposure before the business feels the release.</p>
+        <div class="diagram">
+          <pre class="mermaid">
+flowchart LR
+  M["MR merged"] --> B["Release build created"]
+  B --> Q["QA / TestFlight"]
+  Q --> S["App Store submission"]
+  S --> R["App Review approved"]
+  R --> P["Phased rollout"]
+  P --> U["User adoption threshold"]
+  U --> O["Production outcome measured"]
+
+  O --> C["Crash-free sessions/users"]
+  O --> A["Feature adoption"]
+  O --> V["Video/AirPlay/API success"]
+  O --> I["Incidents, hotfixes,<br/>rollback or config mitigation"]
+          </pre>
+        </div>
+        <div class="table cols-2">
+          <div class="head">Release event field</div><div class="head">Examples and use</div>
+          <div>app, platform, version, build</div><div>NHL iOS, Android, VideoCast, 18.7.0, build 1842.</div>
+          <div>git_sha, pipeline_id</div><div>Joins the mobile build back to GitLab code and CI events.</div>
+          <div>release_channel</div><div>TestFlight, Firebase App Distribution, App Store, phased rollout, config release.</div>
+          <div>submitted_at, approved_at, released_at</div><div>Separates engineering readiness from store/release gating.</div>
+          <div>rollout_percent, adoption_percent</div><div>Shows production exposure and whether a release has enough usage to judge quality.</div>
+          <div>crash_free_sessions, crash_free_users</div><div>Mobile reliability by version and build.</div>
+          <div>rollback or hotfix flag</div><div>Marks release failure and recovery events.</div>
+        </div>
+        <div class="table cols-2">
+          <div class="head">DORA concept</div><div class="head">Mobile adaptation</div>
+          <div>Deployment frequency</div><div>Production app releases, hotfixes, config releases, and backend-impacting mobile releases.</div>
+          <div>Lead time for changes</div><div>MR merge to version available to production users; optionally Jira Ready for Engineering to adoption threshold.</div>
+          <div>Change failure rate</div><div>Releases causing hotfix, rollback, incident, crash regression, severe support spike, or store-impacting issue.</div>
+          <div>Failed deployment recovery time</div><div>Detected production issue to mitigation by config, backend change, hotfix release, rollback, or adoption of fixed version.</div>
+          <div>Reliability</div><div>Crash-free sessions/users, app start success, API failure rate, video playback success, AirPlay success, and SLO adherence.</div>
+        </div>
+      </section>
+
+      <section class="diagram">
+        <h2>Data architecture</h2>
+        <pre class="mermaid">
+flowchart TB
+  Jira["Jira REST API<br/>issues, fields, status transitions"] --> Raw["Raw snapshots"]
+  GitLab["GitLab REST / GraphQL<br/>MRs, commits, pipelines, releases"] --> Raw
+  CI["CI artifacts<br/>tests, quality, coverage"] --> Raw
+  Crash["Crash / performance tooling<br/>Crashlytics or equivalent"] --> Raw
+  Store["App Store / distribution metadata<br/>version, build, rollout"] --> Raw
+
+  Raw --> Transform["dbt or scheduled transforms"]
+  Transform --> Dim["Dimensions<br/>issues, projects, releases, app versions"]
+  Transform --> Fact["Facts<br/>transitions, MR events, pipelines,<br/>release events, crashes, adoption, AI"]
+  Dim --> Mart["Metrics marts"]
+  Fact --> Mart
+  Mart --> Dashboard["Executive dashboard"]
+  Mart --> Review["Weekly operating review"]
+  Mart --> Narrative["Generated narrative"]
+        </pre>
+      </section>
+
+      <section>
+        <h2>Minimum table layer</h2>
+        <div class="grid-3">
+          <article class="card"><h3>Work and product</h3><ul><li>dim_jira_issue</li><li>fact_jira_status_transition</li><li>dim_product_area</li><li>fact_ai_assistance</li></ul></article>
+          <article class="card"><h3>Engineering delivery</h3><ul><li>dim_gitlab_project</li><li>dim_merge_request</li><li>fact_mr_event</li><li>fact_pipeline</li><li>fact_test_run</li><li>fact_code_quality_score</li></ul></article>
+          <article class="card"><h3>Production outcome</h3><ul><li>fact_release_event</li><li>fact_app_version_adoption</li><li>fact_crash_family</li><li>fact_incident</li><li>fact_feature_usage</li></ul></article>
+        </div>
+      </section>
+
+      <section>
+        <h2>Dashboard layers</h2>
+        <div class="grid">
+          <article class="card">
+            <span class="tag">Level 1</span>
+            <h3>Peter morning view</h3>
+            <p>One page for the last 7/30/90 days: request-to-release lead time, active WIP, releases shipped, crash-free sessions/users, change failure rate, top production risks, top flow blockers, AI-assisted work share, code quality trend, and data completeness.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Level 2</span>
+            <h3>Operating review</h3>
+            <p>Product-area views for Scores, GameCenter, VideoCast, AirPlay, Notifications, Auth, Stats, and Platform. Each area gets lead time, open work, aging work, recent releases, crash impact, and AI leverage.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Level 3</span>
+            <h3>Manager and tech-lead drill-down</h3>
+            <p>Issue timelines, MR review timelines, pipeline failures, flaky tests, crash families, release train details, rollout status, and AI-assisted MR outcomes.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Narrative</span>
+            <h3>What Peter should know</h3>
+            <p>Generate a short weekly summary: what improved, what got worse, what is blocked, which risks matter, and what decisions are needed before someone asks.</p>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>AI measurement guardrails</h2>
+        <p>Do not measure prompts, AI-generated lines, AI commits, or AI MRs per developer. Those measures are easy to game and do not prove value. Measure AI at the work-item, workflow, and outcome level.</p>
+        <div class="table cols-2">
+          <div class="head">Better metric</div><div class="head">Framing</div>
+          <div>AI-assisted work share</div><div>Percent of issues/MRs where AI materially contributed.</div>
+          <div>AI-assisted cycle-time delta</div><div>Compare similar work with and without AI assistance.</div>
+          <div>AI-assisted review churn</div><div>Whether AI-assisted MRs needed more or fewer review iterations.</div>
+          <div>AI-assisted test coverage</div><div>Whether AI helped add tests or reduce escaped defects.</div>
+          <div>AI-assisted defect rate</div><div>Whether AI-assisted changes caused incidents, hotfixes, or severe regressions.</div>
+          <div>AI workflow reuse</div><div>Which repeatable workflows are spreading across teams.</div>
+          <div>AI confidence rating</div><div>Developer self-report: useful, neutral, harmful, or risky.</div>
+        </div>
+        <div class="callout">
+          <h3>Rule</h3>
+          <p>AI usage is measured at the work-item level, not the individual developer level. That keeps the dashboard focused on operational leverage, quality, and culture change.</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>90-day plan</h2>
+        <div class="table cols-3">
+          <div class="head">Window</div><div class="head">Deliverable</div><div class="head">What changes</div>
+          <div>Days 0-15</div><div>Metrics Spec v0.1</div><div>Define request, production release, change failure, incident, mobile deployment, AI-assisted work, validation, product areas, and data completeness rules.</div>
+          <div>Days 15-30</div><div>Linkage compliance dashboard</div><div>Report missing Jira keys in branches/MRs, missing Git SHA or build metadata in release builds, missing crash-to-Jira links, and missing production bug links.</div>
+          <div>Days 30-45</div><div>First extraction and flow dashboard</div><div>Pull Jira issues/transitions, GitLab MRs/commits/pipelines/releases, code quality scores, and basic release metadata. Show lead time, cycle time, review time, pipeline success, release frequency, WIP, and aging work.</div>
+          <div>Days 45-60</div><div>Mobile production outcomes</div><div>Add crash-free sessions/users, top crash families, app version adoption, hotfixes, incidents, rollback/config mitigation events, and version-specific production impact.</div>
+          <div>Days 60-90</div><div>AI leverage and narrative</div><div>Add AI labels and a lightweight survey. Report AI-assisted issue count, MR count, cycle-time delta, review churn, tests added, production defects, reusable workflows, and weekly summary text.</div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Reference models to copy carefully</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>GitLab</h3>
+            <p>Copy GitLab’s practical treatment of DORA, Value Stream Analytics, MR analytics, review timing, and pipeline metrics. Do not let MR count or MR rate become a proxy for value.</p>
+          </article>
+          <article class="card">
+            <h3>DORA</h3>
+            <p>Use DORA as the executive vocabulary for delivery performance. Adapt deployment and recovery definitions for mobile because “released” and “used by customers” are different events.</p>
+          </article>
+          <article class="card">
+            <h3>SPACE and EngThrive</h3>
+            <p>Use multidimensional measurement and guardrails. Pair telemetry with survey context so productivity, AI, quality, and developer experience are not collapsed into one fragile number.</p>
+          </article>
+          <article class="card">
+            <h3>Atlassian/Jira</h3>
+            <p>Use cumulative flow and control-chart ideas for bottlenecks, WIP, cycle time, and lead time. Keep workflow hygiene high or the timestamps will mislead.</p>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>Executive story</h2>
+        <p class="lead">The target story is not “we use AI.” It is: “We have an instrumented mobile delivery system. We can see work move from request to release, understand where time is spent, measure production quality after release, identify crashes by user impact, and use AI to accelerate diagnosis, coding, testing, and reporting without removing human quality gates.”</p>
+      </section>
+
+      <p class="sources">
+        Sources: <a href="https://dora.dev/guides/dora-metrics/">DORA metrics guide</a>;
+        <a href="https://docs.gitlab.com/user/analytics/dora_metrics/">GitLab DORA metrics</a>;
+        <a href="https://docs.gitlab.com/api/dora/metrics/">GitLab DORA metrics API</a>;
+        <a href="https://docs.gitlab.com/user/analytics/value_streams_dashboard/">GitLab Value Streams Dashboard</a>;
+        <a href="https://docs.gitlab.com/ee/user/analytics/merge_request_analytics.html">GitLab Merge Request Analytics</a>;
+        <a href="https://handbook.gitlab.com/handbook/product/groups/product-analysis/engineering/metrics/">GitLab engineering metrics handbook</a>;
+        <a href="https://support.atlassian.com/jira-software-cloud/docs/what-is-the-cumulative-flow-diagram/">Jira cumulative flow diagram</a>;
+        <a href="https://support.atlassian.com/jira-software-cloud/docs/view-and-understand-the-control-chart/">Jira control chart</a>;
+        <a href="https://www.microsoft.com/en-us/research/publication/the-space-of-developer-productivity-theres-more-to-it-than-you-think/">SPACE framework</a>;
+        <a href="https://www.microsoft.com/en-us/research/publication/engthrive-make-it-fast-and-easy-to-do-great-work/">Microsoft EngThrive</a>.
+      </p>
+    </div>
+  </main>
+</body>
+</html>
