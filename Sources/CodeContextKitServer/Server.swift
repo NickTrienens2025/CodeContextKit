@@ -425,13 +425,13 @@ public struct CodeContextServer: Sendable {
                                     }
                                 }
                                 let prompt = "You are a helpful AI coding assistant examining the user's provided context.\n\nCONTEXT:\n\(contextText)\n\nUSER QUESTION:\n\(text)", reply: String
-                                if #available(macOS 15.0, *) {
+                                if #available(macOS 26.0, *) {
                                     #if canImport(FoundationModels)
                                     do { let session = LanguageModelSession(), modelResponse = try await session.respond(to: prompt); reply = modelResponse.content.trimmingCharacters(in: .whitespacesAndNewlines) } catch { reply = "Model failed: \(error)" }
                                     #else
                                     reply = "FoundationModels framework not imported."
                                     #endif
-                                } else { reply = "On-device AI summarization requires macOS 15.0+." }
+                                } else { reply = "On-device AI summarization requires macOS 26.0+." }
                                 
                                 try await actionOrchestrator.finishAction(id: actionId, response: reply)
                                 await indexingState.broadcast(["type": "action_history_update"])
@@ -445,8 +445,8 @@ public struct CodeContextServer: Sendable {
                                 var body = ""
                                 if let found = symbol { if let content = try? String(contentsOfFile: found.filePath, encoding: .utf8) { let swiftFile = SwiftSourceFile(filePath: found.filePath, content: content); body = swiftFile.body(for: found) } }
                                 let renderer = SwiftOutlineRenderer(), skeleton = renderer.render(filePath: filePath, symbols: symbols), summary: String
-                                if #available(macOS 15.0, *) { summary = try await self.generateAISummary(name: name, signature: signature, body: body, skeleton: skeleton, packageGoal: readmeContent.prefix(1000).description, projectName: projectName, file: filePath) }
-                                else { summary = "On-device AI summarization requires macOS 15.0 or newer." }
+                                if #available(macOS 26.0, *) { summary = try await self.generateAISummary(name: name, signature: signature, body: body, skeleton: skeleton, packageGoal: readmeContent.prefix(1000).description, projectName: projectName, file: filePath) }
+                                else { summary = "On-device AI summarization requires macOS 26.0 or newer." }
                                 let response = ["type": "generated_summary", "data": ["name": name, "summary": summary]], responseData = try JSONSerialization.data(withJSONObject: response); try await outbound.write(.text(String(data: responseData, encoding: .utf8)!))
                             }
 
@@ -577,7 +577,7 @@ public struct CodeContextServer: Sendable {
         }
     }
 
-    @available(macOS 15.0, *)
+    @available(macOS 26.0, *)
     private func generateAISummary(name: String, signature: String, body: String, skeleton: String, packageGoal: String, projectName: String, file: String) async throws -> String {
         #if canImport(FoundationModels)
         let prompt = "You are an expert Swift software architect. Analyze the following symbol from project '\(projectName)'.\n\nPROJECT GOAL:\n\(packageGoal)\n\nFILE CONTEXT (SKELETON):\n\(skeleton)\n\nTARGET SYMBOL:\nNAME: \(name)\nSIGNATURE: \(signature)\n\nIMPLEMENTATION:\n\(body)\n\nWrite a concise, professional 2-3 sentence documentation summary for this symbol. Focus on how it contributes to the file's architecture and the overall project goals. Do not use preambles like \"This function is\". Start directly with the description."
