@@ -6,6 +6,13 @@ import CodeContextKitRetrieval
 import CodeContextKitContext
 
 @main
+struct CCKitEntry {
+    static func main() async {
+        MintBundleShim.ensureResourceBundlesVisible()
+        await CCKit.main()
+    }
+}
+
 struct CCKit: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "cckit",
