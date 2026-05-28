@@ -72,7 +72,9 @@ let currentPackName = null;
 // Settings
 let settings = {
     autoDocs: true,
-    skeletonOpen: localStorage.getItem('cckit_skeleton_open') === 'true'
+    skeletonOpen: localStorage.getItem('cckit_skeleton_open') === 'true',
+    excludedFolders: [],
+    includedFolders: []
 };
 
 // Load settings
@@ -80,6 +82,8 @@ const savedSettings = localStorage.getItem('cckit_settings');
 if (savedSettings) {
     const parsed = JSON.parse(savedSettings);
     settings.autoDocs = parsed.autoDocs;
+    settings.excludedFolders = parsed.excludedFolders || [];
+    settings.includedFolders = parsed.includedFolders || [];
 }
 
 let messageQueue = [];
@@ -96,6 +100,7 @@ if (ws) {
         console.log('WebSocket Connected');
         const autoDocsEl = document.getElementById('setting-auto-docs');
         if (autoDocsEl) autoDocsEl.checked = settings.autoDocs;
+        renderSettings();
         
         // Initial requests
         send({ type: 'get_map' });
@@ -173,6 +178,12 @@ function handleMessage(message) {
             renderStats(message.data);
             break;
         case 'favorites_updated': favorites = message.data; renderFavorites(); break;
+        case 'settings_updated':
+            settings.excludedFolders = message.data.excludedFolders || [];
+            settings.includedFolders = message.data.includedFolders || [];
+            persistLocalSettings();
+            renderSettings();
+            break;
         case 'packs_updated': 
             contextPacks = message.data; 
             if (currentPackId) {
@@ -552,6 +563,12 @@ function initGraph() {
 // Standard View Components
 function updateConfig(config) {
     currentProjectName = config.projectName; document.title = `${config.projectName} - Visualizer`;
+    if (config.settings && Array.isArray(config.settings.excludedFolders)) {
+        settings.excludedFolders = config.settings.excludedFolders;
+        settings.includedFolders = config.settings.includedFolders || [];
+        persistLocalSettings();
+        renderSettings();
+    }
     const headerTitle = document.querySelector('.nav-header h1'); if (headerTitle) headerTitle.innerText = config.projectName;
     if (config.readme) {
         contentEl.innerHTML = `<div class="readme"><div style="display: flex; justify-content: space-between; align-items: center;"><h2>README.md</h2><div style="display: flex; gap: 10px;"><button class="action-btn" onclick="addToCart('README.md', 'file', 'Initial Project Context')">➕ Add to Cart</button><button class="action-btn" onclick="openInEditor('README.md')">↗️ Open in Editor</button></div></div><div style="background: var(--secondary-background); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); white-space: pre-wrap; font-family: inherit; line-height: 1.6;">${config.readme}</div></div>`;
@@ -755,7 +772,24 @@ function toggleFavorite(name, filePath, kind, viewMode = 'symbols') { if (isFavo
 function requestSummary(name, signature, file) { const container = document.getElementById('ai-summary-container'); if (container) container.style.display = 'block'; const textEl = document.getElementById('ai-summary-text'); if (textEl) textEl.innerText = '🤖 Asking Foundation Model...'; send({ type: 'generate_summary', name: name, signature: signature, file: file }); }
 function displaySummary(data) { const textEl = document.getElementById('ai-summary-text'); if (textEl) textEl.innerText = data.summary; }
 function applyComment(path, name) { const comment = document.getElementById('ai-summary-text').innerText; send({ type: 'apply_doc_comment', path: path, name: name, comment: comment }); alert('Doc comment applied!'); }
-function updateSettings() { settings.autoDocs = document.getElementById('setting-auto-docs').checked; localStorage.setItem('cckit_settings', JSON.stringify(settings)); }
+function persistLocalSettings() { localStorage.setItem('cckit_settings', JSON.stringify(settings)); }
+function renderSettings() {
+    const autoDocsEl = document.getElementById('setting-auto-docs');
+    if (autoDocsEl) autoDocsEl.checked = settings.autoDocs;
+    const excludedEl = document.getElementById('setting-excluded-folders');
+    if (excludedEl) excludedEl.value = (settings.excludedFolders || []).join('\n');
+    const includedEl = document.getElementById('setting-included-folders');
+    if (includedEl) includedEl.value = (settings.includedFolders || []).join('\n');
+}
+function updateSettings() {
+    settings.autoDocs = document.getElementById('setting-auto-docs')?.checked ?? settings.autoDocs;
+    const excludedText = document.getElementById('setting-excluded-folders')?.value || '';
+    const includedText = document.getElementById('setting-included-folders')?.value || '';
+    settings.excludedFolders = excludedText.split('\n').map(x => x.trim()).filter(Boolean);
+    settings.includedFolders = includedText.split('\n').map(x => x.trim()).filter(Boolean);
+    persistLocalSettings();
+    send({ type: 'save_settings', settings: { excludedFolders: settings.excludedFolders, includedFolders: settings.includedFolders } });
+}
 function initMonaco(id, content, lang, isSkeleton = false, line = 0) { 
     require(['vs/editor/editor.main'], function() { 
         const container = document.getElementById(id); 

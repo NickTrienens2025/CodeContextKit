@@ -24,6 +24,12 @@ struct IndexCommand: AsyncParsableCommand {
     @Option(help: "Glob patterns to exclude.")
     var exclude: [String] = []
 
+    @Option(help: "Folder paths or names to exclude from indexing. Saved to .cckit/config.json when set.")
+    var excludeFolder: [String] = []
+
+    @Option(help: "Folder paths or names to index even when ignored by .gitignore. Saved to .cckit/config.json when set.")
+    var includeFolder: [String] = []
+
     @Flag(help: "Print index statistics.")
     var stats: Bool = false
 
@@ -45,6 +51,14 @@ struct IndexCommand: AsyncParsableCommand {
         let wax = try await WaxStore(path: waxPath)
         let actionOrchestrator = ActionOrchestrator(db: db, wax: wax)
         let indexer = Indexer(db: db, wax: wax)
+        let absolutePath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+
+        if !excludeFolder.isEmpty || !includeFolder.isEmpty {
+            var settings = ProjectSettings.load(projectRoot: absolutePath)
+            settings.excludedFolders = Array(Set(settings.excludedFolders + excludeFolder)).sorted()
+            settings.includedFolders = Array(Set(settings.includedFolders + includeFolder)).sorted()
+            try settings.save(projectRoot: absolutePath)
+        }
         
         print("Indexing \(path)...")
         try await indexer.index(at: path, include: include, exclude: exclude, delegate: CommandLineProgressDelegate())

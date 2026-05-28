@@ -1,6 +1,7 @@
 import XCTest
 import Foundation
 @testable import CodeContextKitContext
+@testable import CodeContextKitCore
 @testable import CodeContextKitStorage
 @testable import CodeContextKitRetrieval
 
@@ -65,5 +66,66 @@ final class IndexerTests: XCTestCase {
         let symbols = try db.getSymbols(path: "config.json")
         XCTAssertEqual(symbols.count, 1)
         XCTAssertEqual(symbols[0].kind, .file)
+    }
+
+    func testIndexingDefaultsToGitignore() async throws {
+        let keptURL = tempDir.appendingPathComponent("Sources")
+        let ignoredURL = tempDir.appendingPathComponent("Generated")
+        try FileManager.default.createDirectory(at: keptURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: ignoredURL, withIntermediateDirectories: true)
+        try "Generated/\n".write(to: tempDir.appendingPathComponent(".gitignore"), atomically: true, encoding: .utf8)
+        try "struct Kept {}".write(to: keptURL.appendingPathComponent("Kept.swift"), atomically: true, encoding: .utf8)
+        try "struct Ignored {}".write(to: ignoredURL.appendingPathComponent("Ignored.swift"), atomically: true, encoding: .utf8)
+
+        try await indexer.index(at: tempDir.path)
+
+        let files = try db.getAllFiles()
+        XCTAssertTrue(files.contains { $0.path == "Sources/Kept.swift" })
+        XCTAssertFalse(files.contains { $0.path == "Generated/Ignored.swift" })
+    }
+
+    func testSavedExcludedFoldersAreRemovedFromExistingIndex() async throws {
+        let keptURL = tempDir.appendingPathComponent("Sources")
+        let ignoredURL = tempDir.appendingPathComponent("Vendor")
+        try FileManager.default.createDirectory(at: keptURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: ignoredURL, withIntermediateDirectories: true)
+        try "struct Kept {}".write(to: keptURL.appendingPathComponent("Kept.swift"), atomically: true, encoding: .utf8)
+        try "struct Ignored {}".write(to: ignoredURL.appendingPathComponent("Ignored.swift"), atomically: true, encoding: .utf8)
+
+        try await indexer.index(at: tempDir.path)
+        XCTAssertEqual(try db.getAllFiles().count, 2)
+
+        try ProjectSettings(excludedFolders: ["Vendor"]).save(projectRoot: tempDir.path)
+        try await indexer.index(at: tempDir.path)
+
+        let files = try db.getAllFiles()
+        XCTAssertTrue(files.contains { $0.path == "Sources/Kept.swift" })
+        XCTAssertFalse(files.contains { $0.path == "Vendor/Ignored.swift" })
+    }
+
+    func testIncludedFoldersOverrideGitignore() async throws {
+        let ignoredURL = tempDir.appendingPathComponent("Generated")
+        try FileManager.default.createDirectory(at: ignoredURL, withIntermediateDirectories: true)
+        try "Generated/\n".write(to: tempDir.appendingPathComponent(".gitignore"), atomically: true, encoding: .utf8)
+        try "struct Included {}".write(to: ignoredURL.appendingPathComponent("Included.swift"), atomically: true, encoding: .utf8)
+
+        try ProjectSettings(includedFolders: ["Generated"]).save(projectRoot: tempDir.path)
+        try await indexer.index(at: tempDir.path)
+
+        let files = try db.getAllFiles()
+        XCTAssertTrue(files.contains { $0.path == "Generated/Included.swift" })
+    }
+
+    func testExcludedFoldersWinOverIncludedFolders() async throws {
+        let folderURL = tempDir.appendingPathComponent("Generated")
+        try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+        try "Generated/\n".write(to: tempDir.appendingPathComponent(".gitignore"), atomically: true, encoding: .utf8)
+        try "struct Blocked {}".write(to: folderURL.appendingPathComponent("Blocked.swift"), atomically: true, encoding: .utf8)
+
+        try ProjectSettings(excludedFolders: ["Generated"], includedFolders: ["Generated"]).save(projectRoot: tempDir.path)
+        try await indexer.index(at: tempDir.path)
+
+        let files = try db.getAllFiles()
+        XCTAssertFalse(files.contains { $0.path == "Generated/Blocked.swift" })
     }
 }

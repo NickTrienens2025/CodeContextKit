@@ -86,6 +86,7 @@ public struct CodeContextServer: Sendable {
         let projectName = currentDirectory.lastPathComponent
         let readmePath = currentDirectory.appendingPathComponent("README.md").path
         let readmeContent = (try? String(contentsOfFile: readmePath, encoding: .utf8)) ?? ""
+        let projectRoot = currentDirectory.path
 
         router.get("health") { _, _ in return "OK" }
         router.get("**") { request, context in
@@ -110,7 +111,14 @@ public struct CodeContextServer: Sendable {
             let config = ["type": "config", "data": [
                 "projectName": projectName, 
                 "readme": readmeContent,
-                "surgicalProtocol": Config.surgicalAgenticProtocol
+                "surgicalProtocol": Config.surgicalAgenticProtocol,
+                "settings": {
+                    let settings = ProjectSettings.load(projectRoot: projectRoot)
+                    return [
+                        "excludedFolders": settings.excludedFolders,
+                        "includedFolders": settings.includedFolders
+                    ]
+                }()
             ]]
             if let configData = try? JSONSerialization.data(withJSONObject: config) { 
                 try? await outbound.write(.text(String(data: configData, encoding: .utf8)!)) 
@@ -243,6 +251,17 @@ public struct CodeContextServer: Sendable {
 
                         case "reindex":
                             Task { try? await indexer.index(at: ".", delegate: ServerProgressDelegate(state: indexingState)) }
+
+                        case "save_settings":
+                            if let settingsData = json["settings"] as? [String: Any] {
+                                let excludedFolders = settingsData["excludedFolders"] as? [String] ?? []
+                                let includedFolders = settingsData["includedFolders"] as? [String] ?? []
+                                let settings = ProjectSettings(excludedFolders: excludedFolders, includedFolders: includedFolders)
+                                try settings.save(projectRoot: projectRoot)
+                                let response: [String: Any] = ["type": "settings_updated", "data": ["excludedFolders": settings.excludedFolders, "includedFolders": settings.includedFolders]]
+                                let responseData = try JSONSerialization.data(withJSONObject: response)
+                                try await outbound.write(.text(String(data: responseData, encoding: .utf8)!))
+                            }
 
                         case "get_associated_context":
                             if let items = json["items"] as? [[String: String]] {

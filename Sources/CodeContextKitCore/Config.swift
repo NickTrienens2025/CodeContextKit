@@ -1,3 +1,5 @@
+import Foundation
+
 public struct Config {
     public static let surgicalAgenticProtocol = """
     # The Surgical Agentic Protocol (v1.0)
@@ -21,4 +23,43 @@ public struct Config {
     """
 
     public init() {}
+}
+
+public struct ProjectSettings: Codable, Sendable {
+    public var excludedFolders: [String]
+    public var includedFolders: [String]
+
+    public init(excludedFolders: [String] = [], includedFolders: [String] = []) {
+        self.excludedFolders = excludedFolders
+        self.includedFolders = includedFolders
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.excludedFolders = try container.decodeIfPresent([String].self, forKey: .excludedFolders) ?? []
+        self.includedFolders = try container.decodeIfPresent([String].self, forKey: .includedFolders) ?? []
+    }
+
+    public static func load(projectRoot: String = ".") -> ProjectSettings {
+        let url = settingsURL(projectRoot: projectRoot)
+        guard let data = try? Data(contentsOf: url) else {
+            return ProjectSettings()
+        }
+
+        return (try? JSONDecoder().decode(ProjectSettings.self, from: data)) ?? ProjectSettings()
+    }
+
+    public func save(projectRoot: String = ".") throws {
+        let url = Self.settingsURL(projectRoot: projectRoot)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let data = try JSONEncoder().encode(self)
+        try data.write(to: url, options: .atomic)
+    }
+
+    public static func settingsURL(projectRoot: String = ".") -> URL {
+        URL(fileURLWithPath: projectRoot)
+            .resolvingSymlinksInPath()
+            .appendingPathComponent(".cckit")
+            .appendingPathComponent("config.json")
+    }
 }

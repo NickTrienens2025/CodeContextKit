@@ -168,6 +168,16 @@
                         <input type="checkbox" id="setting-auto-docs" onchange="updateSettings()" style="width: 20px; height: 20px;">
                         <label for="setting-auto-docs" style="font-weight: 600;">Auto-generate AI documentation</label>
                     </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px; max-width: 720px;">
+                        <label for="setting-excluded-folders" style="font-weight: 600;">Folders excluded from indexing</label>
+                        <textarea id="setting-excluded-folders" onchange="updateSettings()" rows="7" placeholder="One folder per line, for example:&#10;Generated&#10;vendor&#10;build/output" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+                        <div style="font-size: 0.8rem; color: #86868b; line-height: 1.4;">Saved to .cckit/config.json. Patterns from .gitignore are also excluded automatically.</div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px; max-width: 720px;">
+                        <label for="setting-included-folders" style="font-weight: 600;">Folders included despite .gitignore</label>
+                        <textarea id="setting-included-folders" onchange="updateSettings()" rows="5" placeholder="One folder per line, for example:&#10;Generated/PublicAPI&#10;fixtures" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+                        <div style="font-size: 0.8rem; color: #86868b; line-height: 1.4;">Use this only for ignored folders that should still be indexed. Built-in safety ignores and excluded folders still win.</div>
+                    </div>
                     <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
                         <h4 style="margin-top: 0;">Maintenance</h4>
                         <button class="action-btn" onclick="reindexProject()" style="background: var(--accent-color); padding: 10px 20px;">🔄 Re-index Project</button>

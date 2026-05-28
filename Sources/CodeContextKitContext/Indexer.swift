@@ -48,8 +48,14 @@ public final class Indexer: Sendable {
         let absolutePath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
         let scanner = FileScanner()
         let hasher = FileHasher()
+        let settings = ProjectSettings.load(projectRoot: absolutePath)
+        let effectiveExclude = Array(Set(settings.excludedFolders + exclude))
+        let effectiveIncludeFolders = settings.includedFolders
         
-        let files = scanner.scan(at: absolutePath, include: include, exclude: exclude)
+        let files = scanner.scan(at: absolutePath, include: include, exclude: effectiveExclude, includeFolders: effectiveIncludeFolders)
+        let scannedRelativePaths = Set(files.map { fileURL in
+            relativePath(for: fileURL, rootPath: absolutePath)
+        })
         delegate?.indexerDidStart(totalFiles: files.count)
         
         var updatedCount = 0
@@ -57,16 +63,7 @@ public final class Indexer: Sendable {
         var totalSymbols = 0
         
         for (index, fileURL) in files.enumerated() {
-            let resolvedFileURL = fileURL.resolvingSymlinksInPath()
-            let resolvedRootURL = URL(fileURLWithPath: absolutePath).resolvingSymlinksInPath()
-            
-            var relativePath = resolvedFileURL.path
-            if relativePath.hasPrefix(resolvedRootURL.path) {
-                relativePath = String(relativePath.dropFirst(resolvedRootURL.path.count))
-                if relativePath.hasPrefix("/") {
-                    relativePath = String(relativePath.dropFirst())
-                }
-            }
+            let relativePath = relativePath(for: fileURL, rootPath: absolutePath)
             
             delegate?.indexerDidProgress(completedFiles: index, totalFiles: files.count, currentFile: relativePath)
             
@@ -100,7 +97,17 @@ public final class Indexer: Sendable {
                 let router = SplitterRouter()
                 let splitter = router.splitter(for: relativePath)
                 
-                let (symbols, references) = splitter.extractSymbols(content: content, filePath: relativePath)
+                let (extractedSymbols, references) = splitter.extractSymbols(content: content, filePath: relativePath)
+                let searchSymbol = SymbolRecord(
+                    kind: .file,
+                    name: relativePath,
+                    qualifiedName: relativePath,
+                    signature: "File: \(relativePath)",
+                    filePath: relativePath,
+                    startLine: 1,
+                    endLine: lines.count
+                )
+                let symbols = extractedSymbols.isEmpty ? [searchSymbol] : extractedSymbols
                 
                 let fileId = try db.saveFile(
                     path: relativePath,
@@ -121,16 +128,6 @@ public final class Indexer: Sendable {
                         try await wax.saveSymbol(symbol, body: body)
                     }
                 } else {
-                    // Create a synthetic file symbol for search if no symbols were extracted
-                    let searchSymbol = symbols.first ?? SymbolRecord(
-                        kind: .file,
-                        name: relativePath,
-                        qualifiedName: relativePath,
-                        signature: "File: \(relativePath)",
-                        filePath: relativePath,
-                        startLine: 1,
-                        endLine: lines.count
-                    )
                     try await wax.saveSymbol(searchSymbol, body: content)
                 }
                 
@@ -147,12 +144,26 @@ public final class Indexer: Sendable {
         let allIndexedFiles = try db.getAllFiles()
         for indexedFile in allIndexedFiles {
             let fullURL = URL(fileURLWithPath: absolutePath).appendingPathComponent(indexedFile.path)
-            if !FileManager.default.fileExists(atPath: fullURL.path) {
+            if !FileManager.default.fileExists(atPath: fullURL.path) || !scannedRelativePaths.contains(indexedFile.path) {
                 try db.deleteFile(path: indexedFile.path)
                 print("Removed stale file from index: \(indexedFile.path)")
             }
         }
         
         delegate?.indexerDidFinish(updated: updatedCount, skipped: skippedCount, totalSymbols: totalSymbols)
+    }
+
+    private func relativePath(for fileURL: URL, rootPath: String) -> String {
+        let resolvedFileURL = fileURL.resolvingSymlinksInPath()
+        let resolvedRootURL = URL(fileURLWithPath: rootPath).resolvingSymlinksInPath()
+
+        var relativePath = resolvedFileURL.path
+        if relativePath.hasPrefix(resolvedRootURL.path) {
+            relativePath = String(relativePath.dropFirst(resolvedRootURL.path.count))
+            if relativePath.hasPrefix("/") {
+                relativePath = String(relativePath.dropFirst())
+            }
+        }
+        return relativePath
     }
 }
